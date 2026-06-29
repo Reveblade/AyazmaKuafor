@@ -28,14 +28,17 @@ function formatDayHeader(date: string) {
 }
 
 export function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const thisMonth = startOfMonth(new Date());
+  const [currentMonth, setCurrentMonth] = useState(thisMonth);
 
+  const monthKey = format(currentMonth, 'yyyy-MM');
   const monthStart = format(currentMonth, 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
 
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ['appointments', 'calendar', monthStart],
-    queryFn: () => adminApi.getAppointments(),
+    queryKey: ['appointments', 'calendar', monthKey],
+    queryFn: () => adminApi.getAppointments({ scope: 'current', month: monthKey }),
+    refetchInterval: 15000,
   });
 
   const daysWithAppointments = useMemo(() => {
@@ -64,7 +67,8 @@ export function CalendarPage() {
         <button
           type="button"
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          className="text-text-muted hover:text-accent p-2 text-xl leading-none"
+          disabled={currentMonth <= thisMonth}
+          className="text-text-muted hover:text-accent p-2 text-xl leading-none disabled:opacity-30 disabled:cursor-not-allowed"
           aria-label="Önceki ay"
         >
           ‹
@@ -85,7 +89,7 @@ export function CalendarPage() {
       {isLoading && <p className="mt-8 text-text-muted">Yükleniyor...</p>}
 
       {!isLoading && daysWithAppointments.length === 0 && (
-        <p className="mt-8 text-text-muted text-sm">Bu ay için randevu bulunmuyor.</p>
+        <p className="mt-8 text-text-muted text-sm">Bu ay için gelecek randevu bulunmuyor.</p>
       )}
 
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 w-full">

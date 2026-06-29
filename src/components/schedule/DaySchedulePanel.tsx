@@ -36,15 +36,18 @@ export function DaySchedulePanel({
 }: DaySchedulePanelProps) {
   const formattedDate = format(parseISO(date), 'd MMMM yyyy, EEEE', { locale: tr });
 
+  const panelClass =
+    'border border-border rounded-sm p-4 bg-surface h-full min-h-0 flex flex-col overflow-hidden';
+
   if (isLoading) {
     return (
-      <div className="border border-border rounded-sm p-4 bg-surface min-h-[320px] flex flex-col">
-        <h3 className="font-display uppercase tracking-wider text-sm mb-4">{formattedDate}</h3>
-        <div className="flex flex-col gap-0 flex-1 animate-pulse">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/40">
-              <div className="h-4 w-28 bg-border/30 rounded-sm" />
-              <div className="h-3 w-16 bg-border/30 rounded-sm" />
+      <div className={panelClass}>
+        <h3 className="font-display uppercase tracking-wider text-sm mb-4 shrink-0">{formattedDate}</h3>
+        <div className="flex flex-col gap-0 flex-1 min-h-0 animate-pulse overflow-y-auto">
+          {Array.from({ length: 16 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-3.5 border-b border-border/40">
+              <div className="h-5 w-32 bg-border/30 rounded-sm" />
+              <div className="h-4 w-20 bg-border/30 rounded-sm" />
             </div>
           ))}
         </div>
@@ -54,8 +57,8 @@ export function DaySchedulePanel({
 
   if (!schedule || schedule.closed) {
     return (
-      <div className="border border-border rounded-sm p-4 bg-surface min-h-[320px]">
-        <h3 className="font-display uppercase tracking-wider text-sm mb-2">{formattedDate}</h3>
+      <div className={panelClass}>
+        <h3 className="font-display uppercase tracking-wider text-sm mb-2 shrink-0">{formattedDate}</h3>
         <p className="text-text-muted text-sm">Haftalık programa göre bu gün kapalı.</p>
       </div>
     );
@@ -63,8 +66,8 @@ export function DaySchedulePanel({
 
   if (schedule.allDayBlocked) {
     return (
-      <div className="border border-border rounded-sm p-4 bg-surface min-h-[320px]">
-        <div className="flex items-start justify-between gap-3 mb-4">
+      <div className={panelClass}>
+        <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
           <div>
             <h3 className="font-display uppercase tracking-wider text-sm">{formattedDate}</h3>
             {schedule.openTime && schedule.closeTime && (
@@ -77,7 +80,7 @@ export function DaySchedulePanel({
             type="button"
             onClick={onToggleAllDay}
             disabled={isSaving}
-            className="text-xs uppercase tracking-wider text-accent hover:text-accent-hover disabled:opacity-50"
+            className="px-3 py-2 text-sm uppercase tracking-wider text-accent hover:text-accent-hover disabled:opacity-50 shrink-0"
           >
             Tüm günü aç
           </button>
@@ -88,7 +91,7 @@ export function DaySchedulePanel({
   }
 
   return (
-    <div className="border border-border rounded-sm p-4 bg-surface min-h-[320px] flex flex-col">
+    <div className={panelClass}>
       <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
         <div>
           <h3 className="font-display uppercase tracking-wider text-sm">{formattedDate}</h3>
@@ -102,7 +105,7 @@ export function DaySchedulePanel({
           type="button"
           onClick={onToggleAllDay}
           disabled={isSaving}
-          className="text-xs uppercase tracking-wider text-danger hover:opacity-80 disabled:opacity-50"
+          className="px-3 py-2 text-sm uppercase tracking-wider text-danger hover:opacity-80 disabled:opacity-50 shrink-0"
         >
           Tüm günü kapat
         </button>
@@ -111,7 +114,7 @@ export function DaySchedulePanel({
       {schedule.slots.length === 0 ? (
         <p className="text-text-muted text-sm">Bu gün için saat bulunmuyor.</p>
       ) : (
-        <div className="flex flex-col gap-0 max-h-[420px] overflow-y-auto -mx-1">
+        <div className="flex flex-col gap-0 flex-1 min-h-0 overflow-y-auto -mx-1">
           {schedule.slots.map((slot) => {
             const isBlocked = blockedStarts.has(slot.startTime);
             const isBooked = slot.status === 'booked';
@@ -127,8 +130,8 @@ export function DaySchedulePanel({
                 disabled={toggleable ? isSaving : undefined}
                 onClick={() => toggleable && onToggleSlot(slot.startTime)}
                 className={cn(
-                  'flex items-center justify-between gap-4 px-2 py-2.5 border-b border-border/60 text-sm text-left w-full transition-colors',
-                  toggleable && 'hover:bg-surface-elevated cursor-pointer',
+                  'flex items-center justify-between gap-4 px-3 py-3.5 border-b border-border/60 text-base text-left w-full transition-colors min-h-[52px]',
+                  toggleable && 'hover:bg-surface-elevated cursor-pointer active:bg-surface-elevated',
                   !toggleable && 'cursor-default',
                 )}
               >
@@ -137,7 +140,7 @@ export function DaySchedulePanel({
                   <span className="text-text-muted mx-1.5">–</span>
                   {slot.endTime}
                 </span>
-                <span className={cn('text-xs uppercase tracking-wider shrink-0', toneStyles[tone])}>
+                <span className={cn('text-sm uppercase tracking-wider shrink-0 font-medium', toneStyles[tone])}>
                   {label}
                 </span>
               </RowTag>

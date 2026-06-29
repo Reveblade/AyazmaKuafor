@@ -48,8 +48,8 @@ export function WeeklyHoursSettings() {
       </p>
       <div className="grid gap-3 max-w-xl">
         {rules.map((rule, i) => (
-          <div key={rule.dayOfWeek} className="flex items-center gap-4 bg-surface border border-border rounded-sm p-3">
-            <label className="flex items-center gap-2 w-32">
+          <div key={rule.dayOfWeek} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 bg-surface border border-border rounded-sm p-3">
+            <label className="flex items-center gap-2 sm:w-32 shrink-0">
               <input
                 type="checkbox"
                 checked={rule.active}
@@ -57,6 +57,7 @@ export function WeeklyHoursSettings() {
               />
               <span className="text-sm">{DAY_NAMES[rule.dayOfWeek]}</span>
             </label>
+            <div className="flex items-center gap-2 flex-wrap">
             <input
               type="time"
               value={rule.openTime}
@@ -72,6 +73,7 @@ export function WeeklyHoursSettings() {
               disabled={!rule.active}
               className="bg-bg border border-border rounded-sm px-2 py-1 text-sm"
             />
+            </div>
           </div>
         ))}
       </div>

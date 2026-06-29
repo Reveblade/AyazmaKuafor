@@ -149,21 +149,21 @@ export function ServicesPage() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl uppercase">Hizmetler</h1>
+      <h1 className="font-display text-2xl sm:text-3xl uppercase">Hizmetler</h1>
 
       <section className="mt-10">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
           <h2 className="font-display text-lg uppercase">Kategoriler</h2>
           <button
             onClick={() => { setIsNewCategory(true); setEditingCategory(null); setCategoryForm({ ...emptyCategory, sortOrder: (categories?.length ?? 0) + 1 }); }}
-            className="px-4 py-2 bg-accent text-bg rounded-sm text-sm uppercase tracking-wider"
+            className="self-start px-4 py-2 bg-accent text-bg rounded-sm text-sm uppercase tracking-wider"
           >
             Yeni Kategori
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {categories?.map((cat) => (
-            <div key={cat.id} className="bg-surface border border-border rounded-sm p-3 flex justify-between items-center text-sm">
+            <div key={cat.id} className="bg-surface border border-border rounded-sm p-3 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center text-sm">
               <span className="font-display uppercase">{cat.name.tr}</span>
               <div className="flex gap-2">
                 <button onClick={() => { setEditingCategory(cat); setIsNewCategory(false); setCategoryForm({ name: cat.name, sortOrder: cat.sortOrder, active: cat.active }); }} className="text-accent text-xs uppercase">Düzenle</button>
@@ -175,15 +175,15 @@ export function ServicesPage() {
       </section>
 
       <section className="mt-10">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
           <h2 className="font-display text-lg uppercase">Hizmet Listesi</h2>
-          <button onClick={openNew} className="px-4 py-2 bg-accent text-bg rounded-sm text-sm uppercase tracking-wider">
+          <button onClick={openNew} className="self-start px-4 py-2 bg-accent text-bg rounded-sm text-sm uppercase tracking-wider">
             Yeni Hizmet
           </button>
         </div>
         <div className="grid gap-3">
           {services?.map((s) => (
-            <div key={s.id} className="bg-surface border border-border rounded-sm p-4 flex justify-between items-start gap-4">
+            <div key={s.id} className="bg-surface border border-border rounded-sm p-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
               <div>
                 <p className="font-display uppercase">{s.name.tr}</p>
                 <p className="text-xs text-accent mt-0.5">{categoryName(s.categoryId)}</p>
@@ -200,7 +200,7 @@ export function ServicesPage() {
       </section>
 
       <section className="mt-10">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start mb-4">
           <div>
             <h2 className="font-display text-lg uppercase">Kombo İndirimleri</h2>
             <p className="text-xs text-text-muted mt-1">Belirli hizmetler birlikte seçildiğinde otomatik indirim uygulanır.</p>
@@ -211,14 +211,14 @@ export function ServicesPage() {
               setEditingCombo(null);
               setComboForm({ ...emptyCombo, sortOrder: (combos?.length ?? 0) + 1 });
             }}
-            className="px-4 py-2 bg-accent text-bg rounded-sm text-sm uppercase tracking-wider shrink-0"
+            className="self-start px-4 py-2 bg-accent text-bg rounded-sm text-sm uppercase tracking-wider shrink-0"
           >
             Yeni Kombo
           </button>
         </div>
         <div className="grid gap-3">
           {combos?.map((combo) => (
-            <div key={combo.id} className="bg-surface border border-border rounded-sm p-4 flex justify-between items-start gap-4">
+            <div key={combo.id} className="bg-surface border border-border rounded-sm p-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
               <div>
                 <p className="font-display uppercase">{combo.name.tr}</p>
                 <p className="text-sm text-text-muted mt-1">

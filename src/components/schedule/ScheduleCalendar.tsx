@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addMonths,
@@ -72,8 +72,36 @@ export function ScheduleCalendar() {
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarHeight, setCalendarHeight] = useState<number>();
+  const [isWideLayout, setIsWideLayout] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
+  );
   const startPadding = (startOfMonth(currentMonth).getDay() + 6) % 7;
   const weekDays = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
+  const panelHeightStyle =
+    isWideLayout && calendarHeight ? { height: calendarHeight } : undefined;
+  const panelWrapperClass = 'min-h-[320px] lg:min-h-0 lg:overflow-hidden flex flex-col';
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setIsWideLayout(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    const el = calendarRef.current;
+    if (!el) return;
+
+    const updateHeight = () => setCalendarHeight(el.offsetHeight);
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [currentMonth, days.length, startPadding]);
 
   function getDayStatus(date: Date): DayStatus {
     if (isBefore(date, today)) return 'past';
@@ -115,8 +143,11 @@ export function ScheduleCalendar() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <div className="border border-border rounded-sm p-4 bg-surface">
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      <div
+        ref={calendarRef}
+        className="border border-border rounded-sm p-4 bg-surface"
+      >
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
@@ -186,17 +217,22 @@ export function ScheduleCalendar() {
       </div>
 
       {selectedDate ? (
-        <DaySchedulePanel
-          date={selectedDate}
-          schedule={schedule}
-          isLoading={scheduleLoading}
-          blockedStarts={blockedStarts}
-          onToggleSlot={handleToggleSlot}
-          onToggleAllDay={handleToggleAllDay}
-          isSaving={saveSchedule.isPending}
-        />
+        <div className={panelWrapperClass} style={panelHeightStyle}>
+          <DaySchedulePanel
+            date={selectedDate}
+            schedule={schedule}
+            isLoading={scheduleLoading}
+            blockedStarts={blockedStarts}
+            onToggleSlot={handleToggleSlot}
+            onToggleAllDay={handleToggleAllDay}
+            isSaving={saveSchedule.isPending}
+          />
+        </div>
       ) : (
-        <div className="border border-border rounded-sm p-4 bg-surface min-h-[320px] flex items-center justify-center">
+        <div
+          className={cn(panelWrapperClass, 'border border-border rounded-sm p-4 bg-surface items-center justify-center')}
+          style={panelHeightStyle}
+        >
           <p className="text-text-muted text-sm">Saatleri düzenlemek için takvimden bir gün seçin.</p>
         </div>
       )}

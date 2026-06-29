@@ -27,7 +27,7 @@ export function LoginPage() {
     <div className="min-h-dvh flex items-center justify-center p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm bg-surface border border-border rounded-sm p-8">
         <h1 className="font-display text-2xl uppercase tracking-wider text-accent text-center mb-6">
-          Ayazma Admin
+          Ayazma ADMIN
         </h1>
         <label className="block text-sm text-text-muted uppercase tracking-wider mb-2">Şifre</label>
         <input

@@ -40,8 +40,12 @@ export const adminApi = {
   logout: () => request<{ ok: boolean }>('/admin/logout', { method: 'POST' }),
   me: () => request<{ ok: boolean }>('/admin/me'),
   getStats: () => request<{ pending: number; todayCount: number; total: number }>('/admin/stats'),
-  getAppointments: (params?: { status?: string; date?: string; scope?: 'current' | 'past' }) => {
-    const q = new URLSearchParams(params as Record<string, string>);
+  getAppointments: (params?: { status?: string; date?: string; month?: string; scope?: 'current' | 'past' }) => {
+    const q = new URLSearchParams();
+    if (params?.scope) q.set('scope', params.scope);
+    if (params?.status) q.set('status', params.status);
+    if (params?.date) q.set('date', params.date);
+    if (params?.month) q.set('month', params.month);
     return request<Appointment[]>('/admin/appointments?' + q);
   },
   getAppointmentsPaginated: (params: {
@@ -49,6 +53,7 @@ export const adminApi = {
     status?: string;
     page: number;
     limit: number;
+    month?: string;
   }) => {
     const q = new URLSearchParams({
       scope: params.scope,
@@ -56,6 +61,7 @@ export const adminApi = {
       limit: String(params.limit),
     });
     if (params.status) q.set('status', params.status);
+    if (params.month) q.set('month', params.month);
     return request<PaginatedAppointments>('/admin/appointments?' + q);
   },
   updateAppointment: (id: string, data: { status?: string; adminNote?: string }) =>

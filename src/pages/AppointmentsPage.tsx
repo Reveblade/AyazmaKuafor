@@ -98,7 +98,6 @@ export function AppointmentsPage() {
         ...(filter ? { status: filter } : {}),
       }),
     enabled: tab === 'current',
-    refetchInterval: 15000,
   });
 
   const { data: pastAppointments, isLoading: isLoadingPast, isFetching: isFetchingPast } = useQuery({
@@ -110,7 +109,6 @@ export function AppointmentsPage() {
         ...(filter ? { status: filter } : {}),
       }),
     enabled: tab === 'past',
-    refetchInterval: 15000,
     placeholderData: keepPreviousData,
   });
 

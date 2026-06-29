@@ -92,6 +92,7 @@ export function CreateAppointmentDialog({
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [error, setError] = useState('');
 
@@ -103,10 +104,15 @@ export function CreateAppointmentDialog({
 
   const activeServices = services?.filter((s) => s.active) ?? [];
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: customerMatches } = useQuery({
-    queryKey: ['customers', search],
-    queryFn: () => adminApi.searchCustomers(search),
-    enabled: open && searchFocused && search.trim().length >= 2,
+    queryKey: ['customers', 'search', debouncedSearch],
+    queryFn: () => adminApi.searchCustomers(debouncedSearch),
+    enabled: open && searchFocused && debouncedSearch.length >= 2,
   });
 
   useEffect(() => {
@@ -117,6 +123,7 @@ export function CreateAppointmentDialog({
       setSelectedServices([]);
       setNotes('');
       setSearch('');
+      setDebouncedSearch('');
       setSearchFocused(false);
       setError('');
     }
@@ -192,7 +199,7 @@ export function CreateAppointmentDialog({
   const formattedDate = format(parseISO(date), 'd MMMM yyyy, EEEE', { locale: tr });
   const showSuggestions =
     searchFocused &&
-    search.trim().length >= 2 &&
+    debouncedSearch.length >= 2 &&
     (customerMatches?.length ?? 0) > 0;
 
   return (

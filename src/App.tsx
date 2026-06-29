@@ -11,7 +11,11 @@ import { ServicesPage } from '@/pages/ServicesPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { CustomersPage } from '@/pages/CustomersPage';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 60_000, retry: 1 },
+  },
+});
 
 function LoginRedirect() {
   const { isAuthenticated, isLoading } = useAuth();

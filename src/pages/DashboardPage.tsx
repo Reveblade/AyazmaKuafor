@@ -13,19 +13,16 @@ export function DashboardPage() {
   const { data: stats } = useQuery({
     queryKey: ['stats'],
     queryFn: adminApi.getStats,
-    refetchInterval: 30000,
   });
 
   const { data: todayAppointments, isLoading } = useQuery({
     queryKey: ['appointments', 'today', today],
     queryFn: () => adminApi.getAppointments({ date: today, scope: 'current' }),
-    refetchInterval: 15000,
   });
 
   const { data: debtors, isLoading: isLoadingDebt } = useQuery({
     queryKey: ['customers', 'debt'],
     queryFn: adminApi.getCustomersWithDebt,
-    refetchInterval: 30000,
   });
 
   const totalDebt = debtors?.reduce((sum, c) => sum + c.debtBalance, 0) ?? 0;

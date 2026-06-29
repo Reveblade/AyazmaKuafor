@@ -39,7 +39,6 @@ export function CalendarPage() {
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['appointments', 'calendar', monthKey],
     queryFn: () => adminApi.getAppointments({ scope: 'current', month: monthKey }),
-    refetchInterval: 15000,
   });
 
   const daysWithAppointments = useMemo(() => {

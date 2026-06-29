@@ -1,11 +1,33 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { Container } from '@/components/ui/Section';
+import { api } from '@/lib/api';
+import { formatWorkingHoursDisplay } from '@/lib/workingHours';
 import { OWNER, PHONE, SHOP_NAME, WHATSAPP_URL } from '@/lib/utils';
 
 export function Footer() {
   const { t } = useTranslation();
   const year = new Date().getFullYear();
+
+  const { data: workingHours } = useQuery({
+    queryKey: ['working-hours'],
+    queryFn: api.getWorkingHours,
+    staleTime: 5 * 60_000,
+  });
+
+  const dayNames = t('contact.dayNames', { returnObjects: true }) as string[];
+  const twoDaySeparator = t('contact.dayJoiner', { defaultValue: ' & ' });
+
+  const hoursDisplay = workingHours?.length
+    ? formatWorkingHoursDisplay(
+        workingHours,
+        dayNames,
+        (days, open, close) => t('contact.hoursRange', { days, open, close }),
+        (days) => t('contact.closedDays', { days }),
+        twoDaySeparator,
+      )
+    : null;
 
   return (
     <footer className="border-t border-border bg-surface">
@@ -23,8 +45,25 @@ export function Footer() {
         </div>
         <div>
           <h4 className="font-display text-sm uppercase tracking-wider mb-3">{t('contact.hours')}</h4>
-          <p className="text-text-muted text-sm">{t('contact.hoursValue')}</p>
-          <p className="text-text-muted text-sm mt-1">{t('contact.closed')}</p>
+          {hoursDisplay ? (
+            <div className="space-y-1">
+              {hoursDisplay.openLines.map((line) => (
+                <p key={line} className="text-text-muted text-sm">
+                  {line}
+                </p>
+              ))}
+              {hoursDisplay.closedLines.map((line) => (
+                <p key={line} className="text-text-muted text-sm">
+                  {line}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <>
+              <p className="text-text-muted text-sm">{t('contact.hoursValue')}</p>
+              <p className="text-text-muted text-sm mt-1">{t('contact.closed')}</p>
+            </>
+          )}
           <a
             href={WHATSAPP_URL}
             target="_blank"

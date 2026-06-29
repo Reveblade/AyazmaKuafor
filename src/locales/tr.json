@@ -34,6 +34,9 @@
     "phone": "Telefon",
     "owner": "İşletme Sahibi",
     "hours": "Çalışma Saatleri",
+    "hoursRange": "{{days}}: {{open}} – {{close}}",
+    "closedDays": "{{days}} kapalı",
+    "dayNames": ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"],
     "hoursValue": "Salı – Cumartesi: 09:00 – 19:00",
     "closed": "Pazar & Pazartesi kapalı"
   },

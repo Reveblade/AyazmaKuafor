@@ -44,6 +44,7 @@ export const api = {
   getServiceCategories: () => request<import('@/types').ServiceCategory[]>('/service-categories'),
   getServiceCombos: () => request<import('@/types').ServiceCombo[]>('/service-combos'),
   getShopSettings: () => request<import('@/types').ShopSettings>('/shop-settings'),
+  getWorkingHours: () => request<import('@/types').WorkingHoursRule[]>('/working-hours'),
   getAvailability: (date: string, serviceIds: string[]) => {
     const params = new URLSearchParams({ date });
     if (serviceIds.length) params.set('serviceIds', serviceIds.join(','));

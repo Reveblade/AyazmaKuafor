@@ -92,4 +92,11 @@ export interface ShopSettings {
   slotIntervalMinutes: number;
 }
 
+export interface WorkingHoursRule {
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  active: boolean;
+}
+
 export type DayAvailability = 'closed' | 'available' | 'full';

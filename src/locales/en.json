@@ -34,6 +34,9 @@
     "phone": "Phone",
     "owner": "Owner",
     "hours": "Working Hours",
+    "hoursRange": "{{days}}: {{open}} – {{close}}",
+    "closedDays": "Closed on {{days}}",
+    "dayNames": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
     "hoursValue": "Tuesday – Saturday: 09:00 – 19:00",
     "closed": "Closed on Sunday & Monday"
   },

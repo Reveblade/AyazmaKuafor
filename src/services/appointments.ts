@@ -45,6 +45,20 @@ export function buildMonthDateFilter(month: string) {
   return { date: { $gte: monthStart, $lte: monthEnd } };
 }
 
+export function buildWeekDateFilter(month: string, week: number) {
+  const [yearStr, monthStr] = month.split('-');
+  const year = Number.parseInt(yearStr, 10);
+  const monthIndex = Number.parseInt(monthStr, 10);
+  if (!year || monthIndex < 1 || monthIndex > 12 || week < 1 || week > 5) return null;
+
+  const lastDay = new Date(year, monthIndex, 0).getDate();
+  const weekStart = (week - 1) * 7 + 1;
+  const weekEnd = Math.min(week * 7, lastDay);
+  const start = `${yearStr}-${monthStr}-${pad(weekStart)}`;
+  const end = `${yearStr}-${monthStr}-${pad(weekEnd)}`;
+  return { date: { $gte: start, $lte: end } };
+}
+
 export function isPastStatus(status: string): status is (typeof PAST_STATUSES)[number] {
   return (PAST_STATUSES as readonly string[]).includes(status);
 }

@@ -28,7 +28,9 @@ import {
   buildMonthDateFilter,
   buildPastScopeFilter,
   buildUpcomingDateTimeFilter,
+  buildWeekDateFilter,
   CURRENT_STATUSES,
+  getNowDateTimeParts,
   isAppointmentStatus,
   isCurrentStatus,
 } from '../services/appointments.js';
@@ -108,6 +110,7 @@ adminRoutes.get('/appointments', adminAuthMiddleware, async (c) => {
   const status = c.req.query('status');
   const date = c.req.query('date');
   const month = c.req.query('month');
+  const weekRaw = c.req.query('week');
   const scope = c.req.query('scope');
   const pageRaw = c.req.query('page');
   const limitRaw = c.req.query('limit');
@@ -132,7 +135,9 @@ adminRoutes.get('/appointments', adminAuthMiddleware, async (c) => {
   }
 
   if (month) {
-    const monthFilter = buildMonthDateFilter(month);
+    const week = weekRaw ? Number.parseInt(weekRaw, 10) : NaN;
+    const weekFilter = Number.isFinite(week) ? buildWeekDateFilter(month, week) : null;
+    const monthFilter = weekFilter ?? buildMonthDateFilter(month);
     if (monthFilter) conditions.push(monthFilter);
   }
 
@@ -714,11 +719,27 @@ adminRoutes.put('/schedule/:date', adminAuthMiddleware, async (c) => {
 
 adminRoutes.get('/stats', adminAuthMiddleware, async (c) => {
   const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
-  const [pending, todayCount, total] = await Promise.all([
+  const { today } = getNowDateTimeParts();
+  const month = today.slice(0, 7);
+  const monthFilter = buildMonthDateFilter(month);
+  const [pending, todayCount, total, revenueResult] = await Promise.all([
     db.collection(COLLECTIONS.appointments).countDocuments({ status: 'pending' }),
     db.collection(COLLECTIONS.appointments).countDocuments({ date: today }),
     db.collection(COLLECTIONS.appointments).countDocuments({}),
+    monthFilter
+      ? db
+          .collection<Appointment>(COLLECTIONS.appointments)
+          .aggregate<{ total: number }>([
+            { $match: { status: 'completed', ...monthFilter } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ['$totalPrice', 0] } } } },
+          ])
+          .toArray()
+      : Promise.resolve([]),
   ]);
-  return c.json({ pending, todayCount, total });
+  return c.json({
+    pending,
+    todayCount,
+    total,
+    monthlyCompletedRevenue: revenueResult[0]?.total ?? 0,
+  });
 });

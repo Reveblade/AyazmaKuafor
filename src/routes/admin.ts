@@ -58,20 +58,11 @@ adminRoutes.post('/logout', (c) => {
 
 adminRoutes.get('/me', adminAuthMiddleware, (c) => c.json({ ok: true, role: 'admin' }));
 
-adminRoutes.get('/appointments', adminAuthMiddleware, async (c) => {
-  const status = c.req.query('status');
-  const date = c.req.query('date');
-  const filter: Record<string, unknown> = {};
-  if (status) filter.status = status;
-  if (date) filter.date = date;
+const PAST_STATUSES = ['completed', 'rejected', 'cancelled'] as const;
+const CURRENT_STATUSES = ['pending', 'accepted'] as const;
 
+async function serializeAppointmentsWithServices(appointments: Appointment[]) {
   const db = getDb();
-  const appointments = await db
-    .collection<Appointment>(COLLECTIONS.appointments)
-    .find(filter)
-    .sort({ date: 1, startTime: 1 })
-    .toArray();
-
   const serviceIds = [...new Set(appointments.flatMap((a) => a.serviceIds.map(String)))];
   const services = serviceIds.length
     ? await db
@@ -81,15 +72,65 @@ adminRoutes.get('/appointments', adminAuthMiddleware, async (c) => {
     : [];
   const serviceMap = new Map(services.map((s) => [String(s._id), s]));
 
-  return c.json(
-    appointments.map((a) => ({
-      ...serializeAppointment(a),
-      services: a.serviceIds
-        .map((id) => serviceMap.get(String(id)))
-        .filter(Boolean)
-        .map((s) => serializeService(s!)),
-    })),
-  );
+  return appointments.map((a) => ({
+    ...serializeAppointment(a),
+    services: a.serviceIds
+      .map((id) => serviceMap.get(String(id)))
+      .filter(Boolean)
+      .map((s) => serializeService(s!)),
+  }));
+}
+
+adminRoutes.get('/appointments', adminAuthMiddleware, async (c) => {
+  const status = c.req.query('status');
+  const date = c.req.query('date');
+  const scope = c.req.query('scope');
+  const pageRaw = c.req.query('page');
+  const limitRaw = c.req.query('limit');
+
+  const filter: Record<string, unknown> = {};
+  if (date) filter.date = date;
+
+  if (scope === 'past') {
+    filter.status = status && PAST_STATUSES.includes(status as (typeof PAST_STATUSES)[number])
+      ? status
+      : { $in: [...PAST_STATUSES] };
+  } else if (scope === 'current') {
+    filter.status = status && CURRENT_STATUSES.includes(status as (typeof CURRENT_STATUSES)[number])
+      ? status
+      : { $in: [...CURRENT_STATUSES] };
+  } else if (status) {
+    filter.status = status;
+  }
+
+  const db = getDb();
+  const collection = db.collection<Appointment>(COLLECTIONS.appointments);
+  const sort = scope === 'past'
+    ? ({ date: -1, startTime: -1 } as const)
+    : ({ date: 1, startTime: 1 } as const);
+
+  if (pageRaw && limitRaw) {
+    const page = Math.max(1, Number.parseInt(pageRaw, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(limitRaw, 10) || 10));
+    const skip = (page - 1) * limit;
+
+    const [appointments, total] = await Promise.all([
+      collection.find(filter).sort(sort).skip(skip).limit(limit).toArray(),
+      collection.countDocuments(filter),
+    ]);
+
+    const items = await serializeAppointmentsWithServices(appointments);
+    return c.json({
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  }
+
+  const appointments = await collection.find(filter).sort(sort).toArray();
+  return c.json(await serializeAppointmentsWithServices(appointments));
 });
 
 adminRoutes.patch('/appointments/:id', adminAuthMiddleware, async (c) => {

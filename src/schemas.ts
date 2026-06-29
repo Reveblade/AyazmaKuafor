@@ -30,6 +30,10 @@ export const updateAppointmentSchema = z.object({
   adminNote: z.string().max(500).optional(),
 });
 
+export const cancelAppointmentSchema = z.object({
+  sessionId: z.string().uuid(),
+});
+
 export const serviceCategorySchema = z.object({
   name: z.object({ tr: z.string().min(1), en: z.string().min(1) }),
   sortOrder: z.number().int(),

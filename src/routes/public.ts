@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { ObjectId } from 'mongodb';
 import { COLLECTIONS, getDb } from '../db.js';
-import { createAppointmentSchema } from '../schemas.js';
+import { cancelAppointmentSchema, createAppointmentSchema } from '../schemas.js';
 import {
   computeEndTime,
   getAvailableSlots,
@@ -278,6 +278,54 @@ publicRoutes.post('/appointments', async (c) => {
     appointment: serializeAppointment(created),
     sessionId: finalSessionId,
   }, 201);
+});
+
+publicRoutes.patch('/appointments/:id/cancel', async (c) => {
+  const id = c.req.param('id');
+  if (!id || !ObjectId.isValid(id)) return c.json({ error: 'Invalid id' }, 400);
+
+  const body = await c.req.json();
+  const parsed = cancelAppointmentSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const db = getDb();
+  const existing = await db
+    .collection<Appointment>(COLLECTIONS.appointments)
+    .findOne({ _id: new ObjectId(id) });
+
+  if (!existing) return c.json({ error: 'Not found' }, 404);
+  if (existing.sessionId !== parsed.data.sessionId) return c.json({ error: 'Forbidden' }, 403);
+  if (existing.status === 'cancelled') return c.json({ error: 'Already cancelled' }, 409);
+  if (existing.status === 'completed' || existing.status === 'rejected') {
+    return c.json({ error: 'Cannot cancel this appointment' }, 409);
+  }
+
+  const result = await db
+    .collection<Appointment>(COLLECTIONS.appointments)
+    .findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { status: 'cancelled', updatedAt: new Date() } },
+      { returnDocument: 'after' },
+    );
+
+  if (!result) return c.json({ error: 'Not found' }, 404);
+
+  const serviceIds = result.serviceIds.map(String);
+  const services = await db
+    .collection<Service>(COLLECTIONS.services)
+    .find({ _id: { $in: serviceIds.map((sid) => new ObjectId(sid)) } })
+    .toArray();
+  const serviceMap = new Map(services.map((s) => [String(s._id), s]));
+
+  const { emitAppointmentUpdated } = await import('../socket.js');
+  emitAppointmentUpdated(result);
+
+  return c.json({
+    ...serializeAppointment(result),
+    services: result.serviceIds
+      .map((sid) => serializeService(serviceMap.get(String(sid))!))
+      .filter(Boolean),
+  });
 });
 
 function serializeCombo(combo: ServiceCombo) {

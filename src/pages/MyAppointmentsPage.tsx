@@ -46,7 +46,6 @@ export function MyAppointmentsPage() {
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['appointments', sessionId],
     queryFn: () => api.getAppointments(sessionId),
-    refetchInterval: 15000,
   });
 
   useEffect(() => {

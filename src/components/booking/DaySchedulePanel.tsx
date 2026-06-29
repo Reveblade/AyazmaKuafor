@@ -2,7 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { tr, enGB } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/cn';
-import { slotOverlapsRange } from '@/lib/utils';
+import { filterPastSlotsForToday, slotOverlapsRange } from '@/lib/utils';
 import { getLocale } from '@/i18n';
 import type { DaySchedule, ScheduleSlot } from '@/types';
 
@@ -78,6 +78,7 @@ export function DaySchedulePanel({
   const dateLocale = locale === 'tr' ? tr : enGB;
 
   const formattedDate = format(parseISO(date), 'd MMMM yyyy, EEEE', { locale: dateLocale });
+  const visibleSlots = schedule ? filterPastSlotsForToday(date, schedule.slots) : [];
 
   if (isLoading) {
     return (
@@ -155,11 +156,11 @@ export function DaySchedulePanel({
         )}
       </div>
 
-      {schedule.slots.length === 0 ? (
+      {visibleSlots.length === 0 ? (
         <p className="text-text-muted text-sm">{t('schedule.noSlots')}</p>
       ) : (
         <div className="flex flex-col gap-0 max-h-[420px] overflow-y-auto -mx-1">
-          {schedule.slots.map((slot) => {
+          {visibleSlots.map((slot) => {
             const isBlocked = blockedStarts?.has(slot.startTime) ?? slot.status === 'blocked';
             const isSelectionStart = selectedTime === slot.startTime;
             const isInSelection =

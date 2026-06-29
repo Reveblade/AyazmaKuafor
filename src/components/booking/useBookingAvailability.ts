@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { connectBookingSocket } from '@/lib/socket';
+
+const PREFETCH_THROTTLE_MS = 300;
 
 export function useBookingAvailability(
   selectedDate: string | null,
@@ -9,8 +11,13 @@ export function useBookingAvailability(
   currentMonth: Date,
 ) {
   const queryClient = useQueryClient();
+  const lastPrefetchAtRef = useRef(0);
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth() + 1;
+  const sortedServiceIds = useMemo(
+    () => [...serviceIds].sort(),
+    [serviceIds.join(',')],
+  );
 
   useEffect(() => {
     if (serviceIds.length === 0) return;
@@ -36,13 +43,13 @@ export function useBookingAvailability(
   }, [queryClient, serviceIds.length]);
 
   const monthQuery = useQuery({
-    queryKey: ['month-availability', year, month, serviceIds],
+    queryKey: ['month-availability', year, month, sortedServiceIds],
     queryFn: () => api.getMonthAvailability(year, month, serviceIds),
     enabled: serviceIds.length > 0,
   });
 
   const dayQuery = useQuery({
-    queryKey: ['availability', selectedDate, serviceIds],
+    queryKey: ['availability', selectedDate, sortedServiceIds],
     queryFn: () => api.getAvailability(selectedDate!, serviceIds),
     enabled: !!selectedDate && serviceIds.length > 0,
     placeholderData: keepPreviousData,
@@ -52,13 +59,18 @@ export function useBookingAvailability(
   const schedule = scheduleReady ? dayQuery.data?.schedule : undefined;
   const scheduleLoading = !!selectedDate && !scheduleReady && dayQuery.isFetching;
 
-  const prefetchDay = (dateStr: string) => {
+  const prefetchDay = useCallback((dateStr: string) => {
     if (serviceIds.length === 0) return;
+
+    const now = Date.now();
+    if (now - lastPrefetchAtRef.current < PREFETCH_THROTTLE_MS) return;
+    lastPrefetchAtRef.current = now;
+
     queryClient.prefetchQuery({
-      queryKey: ['availability', dateStr, serviceIds],
+      queryKey: ['availability', dateStr, sortedServiceIds],
       queryFn: () => api.getAvailability(dateStr, serviceIds),
     });
-  };
+  }, [queryClient, serviceIds, sortedServiceIds]);
 
   return {
     monthData: monthQuery.data,

@@ -58,3 +58,21 @@ export function slotOverlapsRange(
   const rEnd = rStart + rangeEndMinutes;
   return s < rEnd && rStart < e;
 }
+
+function padTimePart(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+export function getLocalTodayAndTime() {
+  const now = new Date();
+  return {
+    today: `${now.getFullYear()}-${padTimePart(now.getMonth() + 1)}-${padTimePart(now.getDate())}`,
+    nowTime: `${padTimePart(now.getHours())}:${padTimePart(now.getMinutes())}`,
+  };
+}
+
+export function filterPastSlotsForToday<T extends { startTime: string }>(date: string, slots: T[]): T[] {
+  const { today, nowTime } = getLocalTodayAndTime();
+  if (date !== today) return slots;
+  return slots.filter((slot) => slot.startTime >= nowTime);
+}

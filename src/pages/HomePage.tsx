@@ -50,7 +50,7 @@ export function HomePage() {
   return (
     <>
       <PageLoader visible={loaderVisible} />
-      <section className="relative min-h-dvh flex items-center">
+      <section className="relative -mt-16 md:-mt-20 min-h-dvh flex items-center">
         <div className="absolute inset-0">
           <OptimizedImage
             src={heroImage.src}

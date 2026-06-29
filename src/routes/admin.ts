@@ -23,6 +23,7 @@ import {
   addCustomerDebtSchema,
 } from '../schemas.js';
 import { changeAdminPassword, verifyAdminPassword } from '../services/adminAuth.js';
+import { resetSystem } from '../services/resetSystem.js';
 import {
   buildMonthDateFilter,
   buildPastScopeFilter,
@@ -61,6 +62,17 @@ adminRoutes.patch('/password', adminAuthMiddleware, async (c) => {
 
   const result = await changeAdminPassword(parsed.data.currentPassword, parsed.data.newPassword);
   if (result === 'invalid') return c.json({ error: 'Mevcut şifre hatalı' }, 401);
+
+  return c.json({ ok: true });
+});
+
+adminRoutes.post('/reset', adminAuthMiddleware, async (c) => {
+  const body = await c.req.json();
+  const parsed = adminAuthSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: 'Şifre gerekli' }, 400);
+
+  const result = await resetSystem(parsed.data.password);
+  if (result === 'invalid') return c.json({ error: 'Şifre hatalı' }, 401);
 
   return c.json({ ok: true });
 });

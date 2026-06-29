@@ -79,6 +79,23 @@ publicRoutes.get('/shop-settings', async (c) => {
   return c.json(settings ?? {});
 });
 
+publicRoutes.get('/working-hours', async (c) => {
+  const db = getDb();
+  const rules = await db
+    .collection<AvailabilityRule>(COLLECTIONS.availabilityRules)
+    .find({})
+    .sort({ dayOfWeek: 1 })
+    .toArray();
+  return c.json(
+    rules.map(({ dayOfWeek, openTime, closeTime, active }) => ({
+      dayOfWeek,
+      openTime,
+      closeTime,
+      active,
+    })),
+  );
+});
+
 publicRoutes.get('/availability', async (c) => {
   const date = c.req.query('date');
   const serviceIds = c.req.query('serviceIds')?.split(',').filter(Boolean) ?? [];

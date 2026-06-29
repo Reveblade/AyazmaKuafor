@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 import { ObjectId } from 'mongodb';
 import { connectDb, COLLECTIONS, closeDb } from './db.js';
 import type { AvailabilityRule, Service, ServiceCategory, ServiceCombo, ShopSettings } from './types.js';
@@ -47,12 +49,12 @@ const DEFAULT_COMBO: Omit<ServiceCombo, '_id' | 'serviceIds'> & { serviceIndexes
 
 const DEFAULT_RULES: Omit<AvailabilityRule, '_id'>[] = [
   { dayOfWeek: 0, openTime: '00:00', closeTime: '00:00', active: false },
-  { dayOfWeek: 1, openTime: '00:00', closeTime: '00:00', active: false },
-  { dayOfWeek: 2, openTime: '09:00', closeTime: '19:00', active: true },
-  { dayOfWeek: 3, openTime: '09:00', closeTime: '19:00', active: true },
-  { dayOfWeek: 4, openTime: '09:00', closeTime: '19:00', active: true },
-  { dayOfWeek: 5, openTime: '09:00', closeTime: '19:00', active: true },
-  { dayOfWeek: 6, openTime: '09:00', closeTime: '19:00', active: true },
+  { dayOfWeek: 1, openTime: '09:00', closeTime: '22:00', active: true },
+  { dayOfWeek: 2, openTime: '09:00', closeTime: '22:00', active: true },
+  { dayOfWeek: 3, openTime: '09:00', closeTime: '22:00', active: true },
+  { dayOfWeek: 4, openTime: '09:00', closeTime: '22:00', active: true },
+  { dayOfWeek: 5, openTime: '09:00', closeTime: '22:00', active: true },
+  { dayOfWeek: 6, openTime: '09:00', closeTime: '22:00', active: true },
 ];
 
 const DEFAULT_SETTINGS: Omit<ShopSettings, '_id'> = {
@@ -65,8 +67,7 @@ const DEFAULT_SETTINGS: Omit<ShopSettings, '_id'> = {
   slotIntervalMinutes: 30,
 };
 
-async function seed() {
-  const db = await connectDb();
+export async function seedBase(db: Awaited<ReturnType<typeof connectDb>>) {
 
   let categoryIds: ObjectId[] = [];
   const categoriesCount = await db.collection(COLLECTIONS.serviceCategories).countDocuments();
@@ -124,11 +125,21 @@ async function seed() {
     console.log('Seeded shop settings');
   }
 
-  console.log('Seed complete');
+  console.log('Base seed complete');
+  return { categoryIds, serviceIds };
+}
+
+async function runSeed() {
+  const db = await connectDb();
+  await seedBase(db);
   await closeDb();
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+
+if (isMain) {
+  runSeed().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

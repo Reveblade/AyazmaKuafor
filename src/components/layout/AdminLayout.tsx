@@ -1,6 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
-import { disconnectAdminSocket } from '@/lib/socket';
+import type { Appointment } from '@/lib/api';
+import {
+  notificationPermission,
+  notifyNewAppointment,
+  requestNotificationPermission,
+} from '@/lib/notifications';
+import { connectAdminSocket, disconnectAdminSocket } from '@/lib/socket';
 import { cn } from '@/lib/utils';
 
 const links = [
@@ -9,11 +17,50 @@ const links = [
   { to: '/takvim', label: 'Takvim' },
   { to: '/musaitlik', label: 'Müsaitlik' },
   { to: '/hizmetler', label: 'Hizmetler' },
+  { to: '/ayarlar', label: 'Ayarlar' },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [notifPermission, setNotifPermission] = useState(notificationPermission);
+
+  useEffect(() => {
+    const socket = connectAdminSocket();
+
+    const refreshAppointments = () => {
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    };
+
+    const refreshSchedule = () => {
+      queryClient.invalidateQueries({ queryKey: ['month-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['day-schedule'] });
+    };
+
+    const onAppointmentCreated = (appointment: Appointment) => {
+      refreshAppointments();
+      notifyNewAppointment(appointment, () => navigate('/randevular'));
+    };
+
+    socket.on('appointment:created', onAppointmentCreated);
+    socket.on('appointment:updated', refreshAppointments);
+    socket.on('schedule:updated', refreshSchedule);
+    socket.on('availability:rules-updated', refreshSchedule);
+
+    return () => {
+      socket.off('appointment:created', onAppointmentCreated);
+      socket.off('appointment:updated', refreshAppointments);
+      socket.off('schedule:updated', refreshSchedule);
+      socket.off('availability:rules-updated', refreshSchedule);
+    };
+  }, [queryClient, navigate]);
+
+  const handleEnableNotifications = async () => {
+    const result = await requestNotificationPermission();
+    setNotifPermission(result);
+  };
 
   const handleLogout = async () => {
     disconnectAdminSocket();
@@ -42,6 +89,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </NavLink>
           ))}
         </nav>
+        {notifPermission === 'default' && (
+          <button
+            type="button"
+            onClick={handleEnableNotifications}
+            className="mb-2 px-3 py-2 text-sm text-accent hover:bg-accent/10 rounded-sm text-left uppercase tracking-wider border border-accent/30"
+          >
+            Bildirimleri aç
+          </button>
+        )}
+        {notifPermission === 'denied' && (
+          <p className="mb-2 px-3 text-xs text-text-muted leading-relaxed">
+            Bildirimler tarayıcıda kapalı. Site ayarlarından izin verin.
+          </p>
+        )}
         <button
           onClick={handleLogout}
           className="mt-4 px-3 py-2 text-sm text-text-muted hover:text-danger text-left uppercase tracking-wider"

@@ -8,6 +8,7 @@ import { AppointmentsPage } from '@/pages/AppointmentsPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { AvailabilityPage } from '@/pages/AvailabilityPage';
 import { ServicesPage } from '@/pages/ServicesPage';
+import { SettingsPage } from '@/pages/SettingsPage';
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ export default function App() {
               <Route path="takvim" element={<CalendarPage />} />
               <Route path="musaitlik" element={<AvailabilityPage />} />
               <Route path="hizmetler" element={<ServicesPage />} />
+              <Route path="ayarlar" element={<SettingsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

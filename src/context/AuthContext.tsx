@@ -4,7 +4,7 @@ import { adminApi } from '@/lib/api';
 interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (pin: string) => Promise<void>;
+  login: (password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -21,8 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = async (pin: string) => {
-    await adminApi.login(pin);
+  const login = async (password: string) => {
+    await adminApi.login(password);
     setIsAuthenticated(true);
   };
 

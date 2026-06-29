@@ -33,8 +33,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const adminApi = {
-  login: (pin: string) =>
-    request<{ ok: boolean }>('/admin/auth', { method: 'POST', body: JSON.stringify({ pin }) }),
+  login: (password: string) =>
+    request<{ ok: boolean }>('/admin/auth', { method: 'POST', body: JSON.stringify({ password }) }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<{ ok: boolean }>('/admin/password', { method: 'PATCH', body: JSON.stringify(data) }),
   logout: () => request<{ ok: boolean }>('/admin/logout', { method: 'POST' }),
   me: () => request<{ ok: boolean }>('/admin/me'),
   getStats: () => request<{ pending: number; todayCount: number; total: number }>('/admin/stats'),
@@ -51,6 +53,20 @@ export const adminApi = {
     request(`/admin/services/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteService: (id: string) =>
     request(`/admin/services/${id}`, { method: 'DELETE' }),
+  getServiceCategories: () => request<ServiceCategory[]>('/admin/service-categories'),
+  createServiceCategory: (data: ServiceCategoryInput) =>
+    request('/admin/service-categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateServiceCategory: (id: string, data: Partial<ServiceCategoryInput>) =>
+    request(`/admin/service-categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteServiceCategory: (id: string) =>
+    request(`/admin/service-categories/${id}`, { method: 'DELETE' }),
+  getServiceCombos: () => request<ServiceCombo[]>('/admin/service-combos'),
+  createServiceCombo: (data: ServiceComboInput) =>
+    request('/admin/service-combos', { method: 'POST', body: JSON.stringify(data) }),
+  updateServiceCombo: (id: string, data: Partial<ServiceComboInput>) =>
+    request(`/admin/service-combos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteServiceCombo: (id: string) =>
+    request(`/admin/service-combos/${id}`, { method: 'DELETE' }),
   getAvailabilityRules: () => request<AvailabilityRule[]>('/admin/availability-rules'),
   saveAvailabilityRules: (rules: AvailabilityRuleInput[]) =>
     request('/admin/availability-rules', { method: 'PUT', body: JSON.stringify(rules) }),
@@ -59,12 +75,32 @@ export const adminApi = {
     request('/admin/availability-blocks', { method: 'POST', body: JSON.stringify(data) }),
   deleteAvailabilityBlock: (id: string) =>
     request(`/admin/availability-blocks/${id}`, { method: 'DELETE' }),
+  getDaySchedule: (date: string) =>
+    request<DayScheduleResponse>(`/admin/schedule?date=${date}`),
+  saveDaySchedule: (date: string, data: { allDay: boolean; blockedStarts: string[]; reason?: string }) =>
+    request<DayScheduleResponse>(`/admin/schedule/${date}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getMonthAvailability: (year: number, month: number) => {
+    const params = new URLSearchParams({ year: String(year), month: String(month) });
+    return request<{ year: number; month: number; summary: Record<string, 'closed' | 'available' | 'full'> }>(
+      `/availability/month?${params}`,
+    );
+  },
 };
 
 export interface LocalizedText { tr: string; en: string; }
 
+export interface ServiceCategory {
+  id: string;
+  name: LocalizedText;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type ServiceCategoryInput = Omit<ServiceCategory, 'id'>;
+
 export interface Service {
   id: string;
+  categoryId: string | null;
   name: LocalizedText;
   description: LocalizedText;
   price: number;
@@ -74,6 +110,17 @@ export interface Service {
 }
 
 export type ServiceInput = Omit<Service, 'id'>;
+
+export interface ServiceCombo {
+  id: string;
+  name: LocalizedText;
+  serviceIds: string[];
+  discountAmount: number;
+  active: boolean;
+  sortOrder: number;
+}
+
+export type ServiceComboInput = Omit<ServiceCombo, 'id'>;
 
 export interface Appointment {
   id: string;
@@ -88,6 +135,10 @@ export interface Appointment {
   notes: string;
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
   adminNote?: string;
+  subtotal?: number;
+  discountAmount?: number;
+  totalPrice?: number;
+  appliedComboIds?: string[];
   services?: Service[];
 }
 
@@ -111,5 +162,32 @@ export interface AvailabilityBlock {
 }
 
 export type AvailabilityBlockInput = Omit<AvailabilityBlock, 'id'>;
+
+export type ScheduleSlotStatus = 'available' | 'blocked' | 'booked';
+
+export interface ScheduleSlot {
+  startTime: string;
+  endTime: string;
+  status: ScheduleSlotStatus;
+  bookable: boolean;
+}
+
+export interface DaySchedule {
+  openTime: string | null;
+  closeTime: string | null;
+  closed: boolean;
+  allDayBlocked: boolean;
+  slots: ScheduleSlot[];
+}
+
+export interface DayScheduleResponse {
+  date: string;
+  slotInterval: number;
+  openTime: string | null;
+  closeTime: string | null;
+  closed: boolean;
+  allDayBlocked: boolean;
+  slots: ScheduleSlot[];
+}
 
 export { API_URL };

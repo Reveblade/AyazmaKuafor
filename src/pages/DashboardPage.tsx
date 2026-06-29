@@ -1,10 +1,7 @@
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
-import { connectAdminSocket } from '@/lib/socket';
 
 export function DashboardPage() {
-  const queryClient = useQueryClient();
   const { data: stats } = useQuery({
     queryKey: ['stats'],
     queryFn: adminApi.getStats,
@@ -16,20 +13,6 @@ export function DashboardPage() {
     queryFn: () => adminApi.getAppointments({ status: 'pending' }),
     refetchInterval: 15000,
   });
-
-  useEffect(() => {
-    const socket = connectAdminSocket();
-    const refresh = () => {
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    };
-    socket.on('appointment:created', refresh);
-    socket.on('appointment:updated', refresh);
-    return () => {
-      socket.off('appointment:created', refresh);
-      socket.off('appointment:updated', refresh);
-    };
-  }, [queryClient]);
 
   return (
     <div>

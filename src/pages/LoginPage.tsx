@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { connectAdminSocket } from '@/lib/socket';
 
 export function LoginPage() {
-  const [pin, setPin] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -15,11 +14,10 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(pin);
-      connectAdminSocket();
+      await login(password);
       navigate('/');
     } catch {
-      setError('Geçersiz PIN');
+      setError('Geçersiz şifre');
     } finally {
       setLoading(false);
     }
@@ -31,11 +29,11 @@ export function LoginPage() {
         <h1 className="font-display text-2xl uppercase tracking-wider text-accent text-center mb-6">
           Ayazma Admin
         </h1>
-        <label className="block text-sm text-text-muted uppercase tracking-wider mb-2">PIN</label>
+        <label className="block text-sm text-text-muted uppercase tracking-wider mb-2">Şifre</label>
         <input
           type="password"
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           className="w-full bg-bg border border-border rounded-sm px-4 py-2.5 text-text focus:outline-none focus:border-accent mb-4"
           autoFocus
         />

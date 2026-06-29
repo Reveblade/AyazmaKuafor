@@ -20,6 +20,14 @@ import {
   updateDayScheduleSchema,
 } from '../schemas.js';
 import { changeAdminPassword, verifyAdminPassword } from '../services/adminAuth.js';
+import {
+  buildMonthDateFilter,
+  buildPastScopeFilter,
+  buildUpcomingDateTimeFilter,
+  CURRENT_STATUSES,
+  isAppointmentStatus,
+  isCurrentStatus,
+} from '../services/appointments.js';
 import { serializeAppointment, serializeService, serializeCategory, serializeCombo } from './public.js';
 import type { Appointment, AvailabilityBlock, AvailabilityRule, Service, ServiceCategory, ServiceCombo } from '../types.js';
 import { getDaySchedule, mergeBlockedStarts } from '../services/availability.js';
@@ -58,9 +66,6 @@ adminRoutes.post('/logout', (c) => {
 
 adminRoutes.get('/me', adminAuthMiddleware, (c) => c.json({ ok: true, role: 'admin' }));
 
-const PAST_STATUSES = ['completed', 'rejected', 'cancelled'] as const;
-const CURRENT_STATUSES = ['pending', 'accepted'] as const;
-
 async function serializeAppointmentsWithServices(appointments: Appointment[]) {
   const db = getDb();
   const serviceIds = [...new Set(appointments.flatMap((a) => a.serviceIds.map(String)))];
@@ -84,24 +89,36 @@ async function serializeAppointmentsWithServices(appointments: Appointment[]) {
 adminRoutes.get('/appointments', adminAuthMiddleware, async (c) => {
   const status = c.req.query('status');
   const date = c.req.query('date');
+  const month = c.req.query('month');
   const scope = c.req.query('scope');
   const pageRaw = c.req.query('page');
   const limitRaw = c.req.query('limit');
 
-  const filter: Record<string, unknown> = {};
-  if (date) filter.date = date;
+  const conditions: Record<string, unknown>[] = [];
+  if (date) conditions.push({ date });
 
   if (scope === 'past') {
-    filter.status = status && PAST_STATUSES.includes(status as (typeof PAST_STATUSES)[number])
-      ? status
-      : { $in: [...PAST_STATUSES] };
+    conditions.push(buildPastScopeFilter());
+    if (status && isAppointmentStatus(status)) {
+      conditions.push({ status });
+    }
   } else if (scope === 'current') {
-    filter.status = status && CURRENT_STATUSES.includes(status as (typeof CURRENT_STATUSES)[number])
-      ? status
-      : { $in: [...CURRENT_STATUSES] };
+    conditions.push(buildUpcomingDateTimeFilter());
+    if (status && isCurrentStatus(status)) {
+      conditions.push({ status });
+    } else {
+      conditions.push({ status: { $in: [...CURRENT_STATUSES] } });
+    }
   } else if (status) {
-    filter.status = status;
+    conditions.push({ status });
   }
+
+  if (month) {
+    const monthFilter = buildMonthDateFilter(month);
+    if (monthFilter) conditions.push(monthFilter);
+  }
+
+  const filter = conditions.length === 0 ? {} : conditions.length === 1 ? conditions[0]! : { $and: conditions };
 
   const db = getDb();
   const collection = db.collection<Appointment>(COLLECTIONS.appointments);

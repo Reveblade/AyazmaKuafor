@@ -21,6 +21,7 @@ export async function connectDb(): Promise<Db> {
     );
   }
   db = client.db();
+  await db.collection(COLLECTIONS.appointments).createIndex({ date: -1, startTime: -1, status: 1 });
   return db;
 }
 

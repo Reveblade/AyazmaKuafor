@@ -37,6 +37,8 @@ export const adminApi = {
     request<{ ok: boolean }>('/admin/auth', { method: 'POST', body: JSON.stringify({ password }) }),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     request<{ ok: boolean }>('/admin/password', { method: 'PATCH', body: JSON.stringify(data) }),
+  resetSystem: (password: string) =>
+    request<{ ok: boolean }>('/admin/reset', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => request<{ ok: boolean }>('/admin/logout', { method: 'POST' }),
   me: () => request<{ ok: boolean }>('/admin/me'),
   getStats: () => request<{ pending: number; todayCount: number; total: number }>('/admin/stats'),

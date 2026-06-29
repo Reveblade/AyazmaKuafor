@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -9,7 +9,7 @@ import {
 } from '@/components/appointments/AppointmentCard';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Dialog } from '@/components/ui/Dialog';
-import { adminApi, type Customer, type CustomerInput } from '@/lib/api';
+import { adminApi, type Customer, type CustomerInput, type PaginatedCustomers } from '@/lib/api';
 import {
   formatPhoneDisplay,
   formatPhoneFull,
@@ -21,6 +21,12 @@ import { cn } from '@/lib/utils';
 
 const panelShellClass =
   'border border-border rounded-sm bg-surface flex flex-col min-h-0 h-full overflow-hidden';
+
+function normalizeCustomersPage(data: PaginatedCustomers | Customer[] | undefined) {
+  if (!data) return { items: [] as Customer[], totalPages: 1 };
+  if (Array.isArray(data)) return { items: data, totalPages: 1 };
+  return { items: data.items, totalPages: data.totalPages };
+}
 
 interface AddDebtDialogProps {
   open: boolean;
@@ -130,19 +136,24 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
   const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [debtError, setDebtError] = useState('');
 
-  const { data: customer, isLoading } = useQuery({
+  const { data: customerData, isFetching, isPending } = useQuery({
     queryKey: ['customer', customerId],
     queryFn: () => adminApi.getCustomer(customerId!),
     enabled: !!customerId,
+    placeholderData: keepPreviousData,
   });
 
+  const customerReady = customerData?.id === customerId;
+  const customer = customerReady ? customerData : undefined;
+  const detailLoading = !!customerId && !customerReady && (isPending || isFetching);
+
   useEffect(() => {
-    if (!customer) return;
+    if (!customer || customer.id !== customerId) return;
     setFirstName(customer.firstName);
     setLastName(customer.lastName);
     setPhoneDigits(phoneDigitsFromStored(customer.phone));
     setError('');
-  }, [customer]);
+  }, [customer, customerId]);
 
   const updateMutation = useMutation({
     mutationFn: (input: CustomerInput) => adminApi.updateCustomer(customerId!, input),
@@ -184,7 +195,7 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
     );
   }
 
-  if (isLoading || !customer) {
+  if (detailLoading) {
     return (
       <div className={cn(panelShellClass, 'p-6 animate-pulse')}>
         <div className="h-6 w-48 bg-border/30 rounded-sm mb-6 shrink-0" />
@@ -193,6 +204,14 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
           <div className="h-10 bg-border/30 rounded-sm" />
           <div className="h-10 bg-border/30 rounded-sm" />
         </div>
+      </div>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <div className={cn(panelShellClass, 'items-center justify-center p-6')}>
+        <p className="text-text-muted text-sm">Müşteri bilgisi yüklenemedi.</p>
       </div>
     );
   }
@@ -424,8 +443,10 @@ function CustomerListItem({ customer, selected, onSelect }: CustomerListItemProp
       type="button"
       onClick={onSelect}
       className={cn(
-        'w-full text-left px-4 py-3 border-b border-border/60 transition-colors',
-        selected ? 'bg-accent/10 border-l-2 border-l-accent' : 'hover:bg-surface-elevated',
+        'w-full text-left px-4 py-3 border-b border-border/60 border-l-2 transition-colors',
+        selected
+          ? 'bg-accent/10 border-l-accent'
+          : 'hover:bg-surface-elevated border-l-transparent',
       )}
     >
       <p className="font-display uppercase text-sm sm:text-base truncate">
@@ -440,6 +461,7 @@ function CustomerListItem({ customer, selected, onSelect }: CustomerListItemProp
 }
 
 export function CustomersPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -453,7 +475,7 @@ export function CustomersPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['customers', debouncedSearch, page],
     queryFn: () =>
       adminApi.getCustomers({
@@ -461,9 +483,21 @@ export function CustomersPage() {
         page,
         limit: 20,
       }),
+    placeholderData: keepPreviousData,
   });
 
-  const customers = data?.items ?? [];
+  const { items: customers, totalPages } = normalizeCustomersPage(data);
+  const listLoading = isLoading && !data;
+
+  useEffect(() => {
+    if (customers.length === 0) return;
+    customers.forEach((customer) => {
+      queryClient.prefetchQuery({
+        queryKey: ['customer', customer.id],
+        queryFn: () => adminApi.getCustomer(customer.id),
+      });
+    });
+  }, [customers, queryClient]);
 
   useEffect(() => {
     if (customers.length === 0) {
@@ -491,7 +525,7 @@ export function CustomersPage() {
 
       <div className="flex-1 min-h-0 grid gap-4 grid-rows-2 lg:grid-cols-2 lg:grid-rows-1">
         <div className={panelShellClass}>
-          {isLoading ? (
+          {listLoading ? (
             <div className="p-4 animate-pulse space-y-3 overflow-y-auto">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-14 bg-border/30 rounded-sm shrink-0" />
@@ -505,7 +539,12 @@ export function CustomersPage() {
             </div>
           ) : (
             <>
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div
+                className={cn(
+                  'flex-1 min-h-0 overflow-y-auto transition-opacity duration-150',
+                  isFetching && data ? 'opacity-60' : 'opacity-100',
+                )}
+              >
                 {customers.map((customer) => (
                   <CustomerListItem
                     key={customer.id}
@@ -515,7 +554,7 @@ export function CustomersPage() {
                   />
                 ))}
               </div>
-              {data && data.totalPages > 1 && (
+              {totalPages > 1 && (
                 <div className="flex items-center justify-between gap-2 p-3 border-t border-border shrink-0">
                   <button
                     type="button"
@@ -526,11 +565,11 @@ export function CustomersPage() {
                     ‹ Önceki
                   </button>
                   <span className="text-xs text-text-muted tabular-nums">
-                    {page} / {data.totalPages}
+                    {page} / {totalPages}
                   </span>
                   <button
                     type="button"
-                    disabled={page >= data.totalPages}
+                    disabled={page >= totalPages}
                     onClick={() => setPage((p) => p + 1)}
                     className="px-3 py-1.5 text-sm text-text-muted hover:text-accent disabled:opacity-30"
                   >

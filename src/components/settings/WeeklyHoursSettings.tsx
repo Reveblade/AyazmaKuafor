@@ -42,50 +42,53 @@ export function WeeklyHoursSettings() {
   };
 
   return (
-    <section>
+    <section className="flex flex-col h-full">
       <SectionHeader
         title="Haftalık Saatler"
         description="Salonun varsayılan açılış ve kapanış saatlerini belirleyin. Kapalı günler randevuya açılmaz."
       />
-      <div className="grid gap-3 max-w-xl">
-        {rules.map((rule, i) => (
-          <div key={rule.dayOfWeek} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 bg-surface border border-border rounded-sm p-3">
-            <label className="flex items-center gap-2 sm:w-32 shrink-0">
+      <div className="flex flex-col flex-1 bg-surface border border-border rounded-sm p-4">
+        <div className="grid gap-2 flex-1">
+          {rules.map((rule, i) => (
+            <div
+              key={rule.dayOfWeek}
+              className="grid grid-cols-[7rem_1fr_auto_1fr] items-center gap-2 sm:gap-3 bg-bg border border-border rounded-sm px-3 py-2"
+            >
+              <label className="flex items-center gap-2 min-w-0">
+                <input
+                  type="checkbox"
+                  checked={rule.active}
+                  onChange={(e) => updateRule(i, { active: e.target.checked })}
+                />
+                <span className="text-sm truncate">{DAY_NAMES[rule.dayOfWeek]}</span>
+              </label>
               <input
-                type="checkbox"
-                checked={rule.active}
-                onChange={(e) => updateRule(i, { active: e.target.checked })}
+                type="time"
+                value={rule.openTime}
+                onChange={(e) => updateRule(i, { openTime: e.target.value })}
+                disabled={!rule.active}
+                className="w-full bg-surface border border-border rounded-sm px-2 py-1.5 text-sm min-w-0"
               />
-              <span className="text-sm">{DAY_NAMES[rule.dayOfWeek]}</span>
-            </label>
-            <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="time"
-              value={rule.openTime}
-              onChange={(e) => updateRule(i, { openTime: e.target.value })}
-              disabled={!rule.active}
-              className="bg-bg border border-border rounded-sm px-2 py-1 text-sm"
-            />
-            <span className="text-text-muted">–</span>
-            <input
-              type="time"
-              value={rule.closeTime}
-              onChange={(e) => updateRule(i, { closeTime: e.target.value })}
-              disabled={!rule.active}
-              className="bg-bg border border-border rounded-sm px-2 py-1 text-sm"
-            />
+              <span className="text-text-muted text-center">–</span>
+              <input
+                type="time"
+                value={rule.closeTime}
+                onChange={(e) => updateRule(i, { closeTime: e.target.value })}
+                disabled={!rule.active}
+                className="w-full bg-surface border border-border rounded-sm px-2 py-1.5 text-sm min-w-0"
+              />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => saveRules.mutate(rules)}
+          disabled={saveRules.isPending}
+          className="w-full mt-4 bg-accent text-bg font-display uppercase tracking-wider py-2.5 rounded-sm hover:bg-accent-hover transition-colors disabled:opacity-50"
+        >
+          {saveRules.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => saveRules.mutate(rules)}
-        disabled={saveRules.isPending}
-        className="mt-4 px-5 py-2 bg-accent text-bg font-display uppercase tracking-wider rounded-sm text-sm disabled:opacity-50"
-      >
-        {saveRules.isPending ? 'Kaydediliyor...' : 'Kaydet'}
-      </button>
     </section>
   );
 }

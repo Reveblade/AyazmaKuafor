@@ -1,12 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { adminApi, type Appointment } from '@/lib/api';
+import {
+  getUnseenCancelledCount,
+  isUnseenCancelled,
+  markCancelledSeen,
+  subscribeUnseenCancelled,
+} from '@/lib/cancelledNotifications';
 import { cn } from '@/lib/utils';
 
 type Tab = 'current' | 'past';
 type AppointmentStatus = Appointment['status'];
+
+const PAGE_SIZE = 10;
 
 const statusLabels: Record<AppointmentStatus | '', string> = {
   '': 'Tümü',
@@ -25,9 +33,6 @@ const statusColors: Record<AppointmentStatus, string> = {
   completed: 'bg-accent/10 text-accent border-accent/30',
 };
 
-const CURRENT_STATUSES: AppointmentStatus[] = ['pending', 'accepted'];
-const PAST_STATUSES: AppointmentStatus[] = ['completed', 'rejected', 'cancelled'];
-
 const tabFilters: Record<Tab, ('' | AppointmentStatus)[]> = {
   current: ['', 'pending', 'accepted'],
   past: ['', 'completed', 'rejected', 'cancelled'],
@@ -40,29 +45,57 @@ function formatAppointmentDate(date: string) {
 export function AppointmentsPage() {
   const [tab, setTab] = useState<Tab>('current');
   const [filter, setFilter] = useState('');
+  const [pastPage, setPastPage] = useState(1);
+  const [unseenCount, setUnseenCount] = useState(getUnseenCancelledCount);
   const queryClient = useQueryClient();
 
-  const { data: appointments, isLoading } = useQuery({
-    queryKey: ['appointments', filter],
-    queryFn: () => adminApi.getAppointments(filter ? { status: filter } : undefined),
+  useEffect(() => subscribeUnseenCancelled(() => setUnseenCount(getUnseenCancelledCount())), []);
+
+  useEffect(() => {
+    setPastPage(1);
+  }, [filter]);
+
+  const { data: currentAppointments, isLoading: isLoadingCurrent } = useQuery({
+    queryKey: ['appointments', 'current', filter],
+    queryFn: () =>
+      adminApi.getAppointments({
+        scope: 'current',
+        ...(filter ? { status: filter } : {}),
+      }),
+    enabled: tab === 'current',
     refetchInterval: 15000,
   });
 
-  const visibleAppointments = useMemo(() => {
-    const allowedStatuses = tab === 'current' ? CURRENT_STATUSES : PAST_STATUSES;
-    const list = appointments?.filter((a) => allowedStatuses.includes(a.status)) ?? [];
+  const { data: pastData, isLoading: isLoadingPast } = useQuery({
+    queryKey: ['appointments', 'past', filter, pastPage],
+    queryFn: () =>
+      adminApi.getAppointmentsPaginated({
+        scope: 'past',
+        page: pastPage,
+        limit: PAGE_SIZE,
+        ...(filter ? { status: filter } : {}),
+      }),
+    enabled: tab === 'past',
+    refetchInterval: 15000,
+  });
 
-    return list.sort((a, b) => {
-      const cmp = a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime);
-      return tab === 'past' ? -cmp : cmp;
-    });
-  }, [appointments, tab]);
+  const visibleAppointments = tab === 'current' ? (currentAppointments ?? []) : (pastData?.items ?? []);
+  const isLoading = tab === 'current' ? isLoadingCurrent : isLoadingPast;
 
   const mutation = useMutation({
     mutationFn: ({ id, status, adminNote }: { id: string; status: string; adminNote?: string }) =>
       adminApi.updateAppointment(id, { status, adminNote }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
   });
+
+  const pastPagination = useMemo(() => {
+    if (tab !== 'past' || !pastData) return null;
+    return {
+      page: pastData.page,
+      totalPages: pastData.totalPages,
+      total: pastData.total,
+    };
+  }, [tab, pastData]);
 
   return (
     <div>
@@ -80,11 +113,16 @@ export function AppointmentsPage() {
               setFilter('');
             }}
             className={cn(
-              'px-4 py-2.5 text-sm uppercase tracking-wider border-b-2 -mb-px transition-colors',
+              'relative px-4 py-2.5 text-sm uppercase tracking-wider border-b-2 -mb-px transition-colors',
               tab === value ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text',
             )}
           >
             {label}
+            {value === 'past' && unseenCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[1.125rem] h-[1.125rem] px-1 flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-medium leading-none">
+                {unseenCount > 9 ? '9+' : unseenCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -118,10 +156,37 @@ export function AppointmentsPage() {
             key={a.id}
             appointment={a}
             readOnly={tab === 'past'}
+            showCancelNotice={tab === 'past' && a.status === 'cancelled' && isUnseenCancelled(a.id)}
             onUpdate={(status, adminNote) => mutation.mutate({ id: a.id, status, adminNote })}
           />
         ))}
       </div>
+
+      {pastPagination && pastPagination.totalPages > 1 && (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-text-muted">
+            Toplam {pastPagination.total} randevu · Sayfa {pastPagination.page} / {pastPagination.totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pastPagination.page <= 1}
+              onClick={() => setPastPage((p) => p - 1)}
+              className="px-4 py-2 text-sm uppercase tracking-wider border border-border rounded-sm text-text-muted hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Önceki
+            </button>
+            <button
+              type="button"
+              disabled={pastPagination.page >= pastPagination.totalPages}
+              onClick={() => setPastPage((p) => p + 1)}
+              className="px-4 py-2 text-sm uppercase tracking-wider border border-border rounded-sm text-text-muted hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Sonraki
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -129,17 +194,51 @@ export function AppointmentsPage() {
 function AppointmentCard({
   appointment: a,
   readOnly,
+  showCancelNotice,
   onUpdate,
 }: {
   appointment: Appointment;
   readOnly?: boolean;
+  showCancelNotice?: boolean;
   onUpdate: (status: string, adminNote?: string) => void;
 }) {
   const [note, setNote] = useState(a.adminNote ?? '');
+  const cardRef = useRef<HTMLDivElement>(null);
   const services = a.services?.map((s) => s.name.tr).join(', ');
 
+  useEffect(() => {
+    if (!showCancelNotice || !cardRef.current) return;
+
+    const el = cardRef.current;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          markCancelledSeen(a.id);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [a.id, showCancelNotice]);
+
   return (
-    <div className="bg-surface border border-border rounded-sm p-4 sm:p-5">
+    <div
+      ref={cardRef}
+      className={cn(
+        'bg-surface border rounded-sm p-4 sm:p-5',
+        showCancelNotice ? 'border-danger/50 ring-1 ring-danger/20' : 'border-border',
+      )}
+    >
+      {showCancelNotice && (
+        <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-danger/10 border border-danger/30 rounded-sm text-sm text-danger">
+          <span className="shrink-0 w-2 h-2 rounded-full bg-danger animate-pulse" aria-hidden="true" />
+          Müşteri bu randevuyu iptal etti
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-display text-lg sm:text-xl uppercase break-words">

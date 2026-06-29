@@ -8,6 +8,9 @@ import {
   notifyNewAppointment,
   requestNotificationPermission,
 } from '@/lib/notifications';
+import {
+  addUnseenCancelled,
+} from '@/lib/cancelledNotifications';
 import { connectAdminSocket, disconnectAdminSocket } from '@/lib/socket';
 import { cn } from '@/lib/utils';
 
@@ -44,14 +47,21 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       notifyNewAppointment(appointment, () => navigate('/randevular'));
     };
 
+    const onAppointmentUpdated = (appointment: Appointment) => {
+      refreshAppointments();
+      if (appointment.status === 'cancelled') {
+        addUnseenCancelled(appointment.id);
+      }
+    };
+
     socket.on('appointment:created', onAppointmentCreated);
-    socket.on('appointment:updated', refreshAppointments);
+    socket.on('appointment:updated', onAppointmentUpdated);
     socket.on('schedule:updated', refreshSchedule);
     socket.on('availability:rules-updated', refreshSchedule);
 
     return () => {
       socket.off('appointment:created', onAppointmentCreated);
-      socket.off('appointment:updated', refreshAppointments);
+      socket.off('appointment:updated', onAppointmentUpdated);
       socket.off('schedule:updated', refreshSchedule);
       socket.off('availability:rules-updated', refreshSchedule);
     };

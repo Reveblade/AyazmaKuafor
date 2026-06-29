@@ -40,9 +40,23 @@ export const adminApi = {
   logout: () => request<{ ok: boolean }>('/admin/logout', { method: 'POST' }),
   me: () => request<{ ok: boolean }>('/admin/me'),
   getStats: () => request<{ pending: number; todayCount: number; total: number }>('/admin/stats'),
-  getAppointments: (params?: { status?: string; date?: string }) => {
+  getAppointments: (params?: { status?: string; date?: string; scope?: 'current' | 'past' }) => {
     const q = new URLSearchParams(params as Record<string, string>);
     return request<Appointment[]>('/admin/appointments?' + q);
+  },
+  getAppointmentsPaginated: (params: {
+    scope: 'past';
+    status?: string;
+    page: number;
+    limit: number;
+  }) => {
+    const q = new URLSearchParams({
+      scope: params.scope,
+      page: String(params.page),
+      limit: String(params.limit),
+    });
+    if (params.status) q.set('status', params.status);
+    return request<PaginatedAppointments>('/admin/appointments?' + q);
   },
   updateAppointment: (id: string, data: { status?: string; adminNote?: string }) =>
     request(`/admin/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -121,6 +135,14 @@ export interface ServiceCombo {
 }
 
 export type ServiceComboInput = Omit<ServiceCombo, 'id'>;
+
+export interface PaginatedAppointments {
+  items: Appointment[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 export interface Appointment {
   id: string;

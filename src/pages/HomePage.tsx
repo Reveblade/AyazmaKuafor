@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -5,23 +6,50 @@ import { Container, Section } from '@/components/ui/Section';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { PageLoader } from '@/components/ui/PageLoader';
 import { api } from '@/lib/api';
 import { getLocale } from '@/i18n';
 import { formatPrice, localized } from '@/lib/utils';
+import { preloadCriticalAssets } from '@/lib/preloadImage';
 import { heroImage } from '@/data/images';
 
 export function HomePage() {
   const { t } = useTranslation();
   const locale = getLocale();
+  const [heroReady, setHeroReady] = useState(false);
+  const [loaderVisible, setLoaderVisible] = useState(true);
   const { data: services } = useQuery({
     queryKey: ['services'],
     queryFn: api.getServices,
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      preloadCriticalAssets([heroImage.src]),
+      document.fonts?.ready ?? Promise.resolve(),
+    ]).finally(() => {
+      if (!cancelled) setHeroReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!heroReady) return;
+
+    const timer = setTimeout(() => setLoaderVisible(false), 150);
+    return () => clearTimeout(timer);
+  }, [heroReady]);
+
   const featured = services?.slice(0, 3) ?? [];
 
   return (
     <>
+      <PageLoader visible={loaderVisible} />
       <section className="relative min-h-dvh flex items-center">
         <div className="absolute inset-0">
           <OptimizedImage

@@ -58,7 +58,7 @@ export function BookingPriceSummary({ selectedIds, className, variant = 'default
     return (
       <div
         className={cn(
-          'fixed bottom-6 left-6 z-50 lg:hidden',
+          'fixed bottom-6 left-6 z-50',
           'border border-border rounded-sm bg-surface p-4 shadow-lg space-y-2',
           'pb-[max(1rem,env(safe-area-inset-bottom))]',
           'min-w-[11.5rem] w-[calc(100vw-7rem)] max-w-[17rem]',

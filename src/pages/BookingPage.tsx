@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { startOfMonth } from 'date-fns';
 import { Container, Section } from '@/components/ui/Section';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 import { Card } from '@/components/ui/Card';
 import { BookingContactForm } from '@/components/booking/BookingContactForm';
 import { ServiceCategoryPicker } from '@/components/booking/ServiceCategoryPicker';
@@ -31,6 +32,7 @@ type FormData = {
 
 export function BookingPage() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const queryClient = useQueryClient();
   const defaultContact = getSavedContacts()[0];
 
@@ -109,14 +111,13 @@ export function BookingPage() {
     setSelectedServices((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
-    setSelectedDate(null);
     setSelectedTime(null);
   };
 
   const onSubmit = (data: FormData) => {
-    if (!selectedServices.length) return alert(t('booking.selectService'));
-    if (!selectedDate) return alert(t('booking.selectDate'));
-    if (!selectedTime) return alert(t('booking.selectTime'));
+    if (!selectedServices.length) return showToast(t('booking.selectService'));
+    if (!selectedDate) return showToast(t('booking.selectDate'));
+    if (!selectedTime) return showToast(t('booking.selectTime'));
 
     mutation.mutate({
       sessionId: getSessionId(),
@@ -145,14 +146,11 @@ export function BookingPage() {
   const showSchedule = selectedServices.length > 0;
 
   return (
-    <Section className={showSchedule ? 'pb-36 lg:pb-0' : undefined}>
+    <Section className={showSchedule ? 'pb-36' : undefined}>
       <Container>
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-          <div>
-            <h1 className="font-display text-4xl md:text-5xl uppercase">{t('booking.title')}</h1>
-            <p className="mt-4 text-text-muted">{t('booking.subtitle')}</p>
-          </div>
-          <BookingPriceSummary selectedIds={selectedServices} className="hidden lg:block lg:w-72 shrink-0" />
+        <div>
+          <h1 className="font-display text-4xl md:text-5xl uppercase">{t('booking.title')}</h1>
+          <p className="mt-4 text-text-muted">{t('booking.subtitle')}</p>
         </div>
 
         <BookingPriceSummary selectedIds={selectedServices} variant="floating" />

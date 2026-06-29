@@ -41,7 +41,10 @@ export const adminApi = {
     request<{ ok: boolean }>('/admin/reset', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => request<{ ok: boolean }>('/admin/logout', { method: 'POST' }),
   me: () => request<{ ok: boolean }>('/admin/me'),
-  getStats: () => request<{ pending: number; todayCount: number; total: number }>('/admin/stats'),
+  getStats: () =>
+    request<{ pending: number; todayCount: number; total: number; monthlyCompletedRevenue: number }>(
+      '/admin/stats',
+    ),
   getAppointments: (params?: { status?: string; date?: string; month?: string; scope?: 'current' | 'past' }) => {
     const q = new URLSearchParams();
     if (params?.scope) q.set('scope', params.scope);
@@ -51,11 +54,12 @@ export const adminApi = {
     return request<Appointment[]>('/admin/appointments?' + q);
   },
   getAppointmentsPaginated: (params: {
-    scope: 'past';
+    scope: 'current' | 'past';
     status?: string;
     page: number;
     limit: number;
     month?: string;
+    week?: number;
   }) => {
     const q = new URLSearchParams({
       scope: params.scope,
@@ -64,6 +68,7 @@ export const adminApi = {
     });
     if (params.status) q.set('status', params.status);
     if (params.month) q.set('month', params.month);
+    if (params.week != null) q.set('week', String(params.week));
     return request<PaginatedAppointments>('/admin/appointments?' + q);
   },
   updateAppointment: (id: string, data: { status?: string; adminNote?: string }) =>

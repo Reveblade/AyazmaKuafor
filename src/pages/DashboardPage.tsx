@@ -3,6 +3,11 @@ import { format } from 'date-fns';
 import { AppointmentCard } from '@/components/appointments/AppointmentCard';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionHeader } from '@/components/layout/SectionHeader';
+import {
+  AppointmentListSkeleton,
+  ListRowsSkeleton,
+  StatCardsSkeleton,
+} from '@/components/ui/Skeleton';
 import { adminApi } from '@/lib/api';
 
 const today = format(new Date(), 'yyyy-MM-dd');
@@ -10,7 +15,7 @@ const today = format(new Date(), 'yyyy-MM-dd');
 export function DashboardPage() {
   const queryClient = useQueryClient();
 
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: isLoadingStats } = useQuery({
     queryKey: ['stats'],
     queryFn: adminApi.getStats,
   });
@@ -31,7 +36,7 @@ export function DashboardPage() {
     mutationFn: ({ id, status, adminNote }: { id: string; status: string; adminNote?: string }) =>
       adminApi.updateAppointment(id, { status, adminNote }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments', 'today'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
@@ -39,30 +44,40 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="Panel" />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Bekleyen" value={stats?.pending ?? 0} accent />
-        <StatCard label="Bugün" value={stats?.todayCount ?? 0} />
-        <StatCard label="Toplam" value={stats?.total ?? 0} />
-      </div>
+      {isLoadingStats && !stats ? (
+        <StatCardsSkeleton count={4} />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Bekleyen" value={stats?.pending ?? 0} accent />
+          <StatCard label="Bugün" value={stats?.todayCount ?? 0} />
+          <StatCard label="Toplam" value={stats?.total ?? 0} />
+          <StatCard
+            label="Bu Ay (Tamamlanan)"
+            value={`${stats?.monthlyCompletedRevenue ?? 0} ₺`}
+          />
+        </div>
+      )}
 
       <section className="mt-10">
         <SectionHeader title="Bugünkü Randevularınız" />
 
-        {isLoading && <p className="text-text-muted">Yükleniyor...</p>}
+        {isLoading && <AppointmentListSkeleton count={3} />}
 
         {!isLoading && !todayAppointments?.length && (
           <p className="text-text-muted">Bugün için randevu yok.</p>
         )}
 
-        <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4">
-          {todayAppointments?.map((a) => (
+        {!isLoading && (
+          <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4">
+            {todayAppointments?.map((a) => (
             <AppointmentCard
               key={a.id}
               appointment={a}
               onUpdate={(status, adminNote) => mutation.mutate({ id: a.id, status, adminNote })}
             />
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-10">
@@ -75,7 +90,7 @@ export function DashboardPage() {
           }
         />
 
-        {isLoadingDebt && <p className="text-text-muted">Yükleniyor...</p>}
+        {isLoadingDebt && <ListRowsSkeleton count={3} />}
 
         {!isLoadingDebt && debtors && debtors.length > 0 && (
           <div className="grid gap-2 sm:gap-3">
@@ -102,11 +117,21 @@ export function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  accent?: boolean;
+}) {
   return (
     <div className="bg-surface border border-border rounded-sm p-6">
       <p className="text-sm text-text-muted uppercase tracking-wider">{label}</p>
-      <p className={`font-display text-4xl mt-2 ${accent ? 'text-accent' : ''}`}>{value}</p>
+      <p className={`font-display text-4xl mt-2 tabular-nums ${accent ? 'text-accent' : ''}`}>
+        {value}
+      </p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addMonths,
@@ -28,6 +28,15 @@ export function ScheduleCalendar() {
   const [selectedStartTimes, setSelectedStartTimes] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const lastBookingClickRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<{
+    date: string;
+    allDay: boolean;
+    blockedStarts: string[];
+  } | null>(null);
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+  const [hasPendingSave, setHasPendingSave] = useState(false);
   const today = startOfDay(new Date());
 
   const year = currentMonth.getFullYear();
@@ -80,14 +89,58 @@ export function ScheduleCalendar() {
   }, [schedule, visibleScheduleSlots]);
 
   const saveSchedule = useMutation({
-    mutationFn: (payload: { allDay: boolean; blockedStarts: string[] }) =>
-      adminApi.saveDaySchedule(selectedDate!, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['day-schedule', selectedDate] });
+    mutationFn: ({
+      date,
+      allDay,
+      blockedStarts,
+    }: {
+      date: string;
+      allDay: boolean;
+      blockedStarts: string[];
+    }) => adminApi.saveDaySchedule(date, { allDay, blockedStarts }),
+    onSuccess: (data, { date }) => {
+      queryClient.setQueryData(['day-schedule', date], data);
       queryClient.invalidateQueries({ queryKey: ['month-availability'] });
-      queryClient.invalidateQueries({ queryKey: ['availability-blocks'] });
     },
+    onSettled: () => setHasPendingSave(false),
   });
+
+  const flushScheduleSave = useCallback(() => {
+    const pending = pendingSaveRef.current;
+    if (!pending) return;
+    pendingSaveRef.current = null;
+    saveSchedule.mutate(pending);
+  }, [saveSchedule]);
+
+  const queueScheduleSave = useCallback(
+    (payload: { allDay: boolean; blockedStarts: string[] }, immediate = false) => {
+      const date = selectedDateRef.current;
+      if (!date) return;
+      pendingSaveRef.current = { date, ...payload };
+      setHasPendingSave(true);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (immediate) {
+        flushScheduleSave();
+      } else {
+        saveTimerRef.current = setTimeout(flushScheduleSave, 500);
+      }
+    },
+    [flushScheduleSave],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      const pending = pendingSaveRef.current;
+      if (pending) {
+        pendingSaveRef.current = null;
+        adminApi.saveDaySchedule(pending.date, {
+          allDay: pending.allDay,
+          blockedStarts: pending.blockedStarts,
+        });
+      }
+    };
+  }, [selectedDate]);
 
   const days = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -189,19 +242,16 @@ export function ScheduleCalendar() {
     else next.add(startTime);
 
     setBlockedStarts(next);
-    saveSchedule.mutate({
-      allDay: false,
-      blockedStarts: [...next].sort(),
-    });
+    queueScheduleSave({ allDay: false, blockedStarts: [...next].sort() });
   };
 
   const handleToggleAllDay = () => {
     if (!selectedDate || !schedule) return;
 
     if (schedule.allDayBlocked) {
-      saveSchedule.mutate({ allDay: false, blockedStarts: [] });
+      queueScheduleSave({ allDay: false, blockedStarts: [] }, true);
     } else {
-      saveSchedule.mutate({ allDay: true, blockedStarts: [] });
+      queueScheduleSave({ allDay: true, blockedStarts: [] }, true);
     }
   };
 
@@ -317,7 +367,7 @@ export function ScheduleCalendar() {
             onToggleSlot={handleToggleSlot}
             onSelectBookingSlot={handleSelectBookingSlot}
             onToggleAllDay={handleToggleAllDay}
-            isSaving={saveSchedule.isPending}
+            isSaving={saveSchedule.isPending || hasPendingSave}
           />
           {panelMode === 'book' && selectedStartTimes.size > 0 && (
             <div className="flex flex-wrap gap-2 mt-3 shrink-0">

@@ -1,6 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import type { Appointment } from '@/lib/api';
 import {
@@ -12,6 +11,7 @@ import {
   addUnseenCancelled,
 } from '@/lib/cancelledNotifications';
 import { connectAdminSocket, disconnectAdminSocket } from '@/lib/socket';
+import { useDebouncedQueryInvalidation } from '@/hooks/useDebouncedQueryInvalidation';
 import { cn } from '@/lib/utils';
 
 const links = [
@@ -97,30 +97,20 @@ function SidebarContent({
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { invalidateAppointments, invalidateSchedule } = useDebouncedQueryInvalidation();
   const [notifPermission, setNotifPermission] = useState(notificationPermission);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const socket = connectAdminSocket();
 
-    const refreshAppointments = () => {
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    };
-
-    const refreshSchedule = () => {
-      queryClient.invalidateQueries({ queryKey: ['month-availability'] });
-      queryClient.invalidateQueries({ queryKey: ['day-schedule'] });
-    };
-
     const onAppointmentCreated = (appointment: Appointment) => {
-      refreshAppointments();
+      invalidateAppointments();
       notifyNewAppointment(appointment, () => navigate('/randevular'));
     };
 
     const onAppointmentUpdated = (appointment: Appointment) => {
-      refreshAppointments();
+      invalidateAppointments();
       if (appointment.status === 'cancelled') {
         addUnseenCancelled(appointment.id);
       }
@@ -128,16 +118,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
     socket.on('appointment:created', onAppointmentCreated);
     socket.on('appointment:updated', onAppointmentUpdated);
-    socket.on('schedule:updated', refreshSchedule);
-    socket.on('availability:rules-updated', refreshSchedule);
+    socket.on('schedule:updated', invalidateSchedule);
+    socket.on('availability:rules-updated', invalidateSchedule);
 
     return () => {
       socket.off('appointment:created', onAppointmentCreated);
       socket.off('appointment:updated', onAppointmentUpdated);
-      socket.off('schedule:updated', refreshSchedule);
-      socket.off('availability:rules-updated', refreshSchedule);
+      socket.off('schedule:updated', invalidateSchedule);
+      socket.off('availability:rules-updated', invalidateSchedule);
     };
-  }, [queryClient, navigate]);
+  }, [invalidateAppointments, invalidateSchedule, navigate]);
 
   useEffect(() => {
     if (!menuOpen) return;

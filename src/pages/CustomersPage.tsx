@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
@@ -9,7 +9,11 @@ import {
 } from '@/components/appointments/AppointmentCard';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Dialog } from '@/components/ui/Dialog';
-import { adminApi, type Customer, type CustomerInput, type PaginatedCustomers } from '@/lib/api';
+import {
+  CustomerDetailSkeleton,
+  CustomerListSkeleton,
+} from '@/components/ui/Skeleton';
+import { adminApi, type Customer, type CustomerDetail, type CustomerInput, type PaginatedCustomers } from '@/lib/api';
 import {
   formatPhoneDisplay,
   formatPhoneFull,
@@ -18,6 +22,9 @@ import {
   phoneDigitsFromStored,
 } from '@/lib/phone';
 import { cn } from '@/lib/utils';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+
+const MIN_DETAIL_LOADING_MS = 400;
 
 const panelShellClass =
   'border border-border rounded-sm bg-surface flex flex-col min-h-0 h-full overflow-hidden';
@@ -123,10 +130,11 @@ function AddDebtDialog({
 
 interface CustomerDetailPanelProps {
   customerId: string | null;
+  loading?: boolean;
   onDeleted: () => void;
 }
 
-export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPanelProps) {
+export function CustomerDetailPanel({ customerId, loading: loadingProp, onDeleted }: CustomerDetailPanelProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [firstName, setFirstName] = useState('');
@@ -136,16 +144,24 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
   const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [debtError, setDebtError] = useState('');
 
-  const { data: customerData, isFetching, isPending } = useQuery({
+  const { data: customerData, isError } = useQuery({
     queryKey: ['customer', customerId],
     queryFn: () => adminApi.getCustomer(customerId!),
     enabled: !!customerId,
-    placeholderData: keepPreviousData,
   });
 
   const customerReady = customerData?.id === customerId;
   const customer = customerReady ? customerData : undefined;
-  const detailLoading = !!customerId && !customerReady && (isPending || isFetching);
+  const detailLoading = loadingProp ?? (!!customerId && !customerReady && !isError);
+
+  useLayoutEffect(() => {
+    setFirstName('');
+    setLastName('');
+    setPhoneDigits('');
+    setError('');
+    setDebtDialogOpen(false);
+    setDebtError('');
+  }, [customerId]);
 
   useEffect(() => {
     if (!customer || customer.id !== customerId) return;
@@ -157,10 +173,14 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
 
   const updateMutation = useMutation({
     mutationFn: (input: CustomerInput) => adminApi.updateCustomer(customerId!, input),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      queryClient.setQueryData<CustomerDetail>(['customer', customerId], (prev) =>
+        prev ? { ...prev, ...updated } : prev,
+      );
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      setFirstName(updated.firstName);
+      setLastName(updated.lastName);
+      setPhoneDigits(phoneDigitsFromStored(updated.phone));
       setError('');
     },
     onError: (err: Error) => setError(err.message),
@@ -178,9 +198,9 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
   const addDebtMutation = useMutation({
     mutationFn: (data: { amount: number; note: string }) =>
       adminApi.addCustomerDebt(customerId!, { amount: data.amount, note: data.note || undefined }),
-    onSuccess: () => {
+    onSuccess: (detail) => {
+      queryClient.setQueryData(['customer', customerId], detail);
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
       setDebtDialogOpen(false);
       setDebtError('');
     },
@@ -195,33 +215,8 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
     );
   }
 
-  if (detailLoading) {
-    return (
-      <div className={cn(panelShellClass, 'p-6 animate-pulse')}>
-        <div className="h-6 w-48 bg-border/30 rounded-sm mb-6 shrink-0" />
-        <div className="space-y-3">
-          <div className="h-10 bg-border/30 rounded-sm" />
-          <div className="h-10 bg-border/30 rounded-sm" />
-          <div className="h-10 bg-border/30 rounded-sm" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!customer) {
-    return (
-      <div className={cn(panelShellClass, 'items-center justify-center p-6')}>
-        <p className="text-text-muted text-sm">Müşteri bilgisi yüklenemedi.</p>
-      </div>
-    );
-  }
-
-  const isDirty =
-    firstName !== customer.firstName ||
-    lastName !== customer.lastName ||
-    phoneDigits !== phoneDigitsFromStored(customer.phone);
-
   const handleSave = () => {
+    if (!customer) return;
     setError('');
     if (firstName.trim().length < 2) {
       setError('Ad en az 2 karakter olmalı');
@@ -243,6 +238,7 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
   };
 
   const handleDelete = () => {
+    if (!customer) return;
     const name = `${customer.firstName} ${customer.lastName}`;
     if (!window.confirm(`${name} müşterisini silmek istediğinize emin misiniz? Randevu kayıtları silinmez.`)) {
       return;
@@ -250,9 +246,23 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
     deleteMutation.mutate();
   };
 
+  const isDirty = customer
+    ? firstName !== customer.firstName ||
+      lastName !== customer.lastName ||
+      phoneDigits !== phoneDigitsFromStored(customer.phone)
+    : false;
+
   return (
     <>
       <div className={panelShellClass}>
+        {detailLoading ? (
+          <CustomerDetailSkeleton className="border-0 rounded-none h-full" />
+        ) : !customer ? (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <p className="text-text-muted text-sm">Müşteri bilgisi yüklenemedi.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col min-h-0 h-full">
         <div className="p-4 sm:p-5 border-b border-border shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -326,16 +336,19 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
-        {isDirty && (
+        <div className="mt-4 min-h-[2.625rem]">
           <button
             type="button"
             onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className="mt-4 px-4 py-2 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider disabled:opacity-50"
+            disabled={updateMutation.isPending || !isDirty}
+            className={cn(
+              'px-4 py-2 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider disabled:opacity-50 transition-opacity duration-150',
+              isDirty || updateMutation.isPending ? 'opacity-100' : 'opacity-0 pointer-events-none',
+            )}
           >
             {updateMutation.isPending ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
           </button>
-        )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-6">
@@ -417,8 +430,11 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
         )}
         </section>
       </div>
-    </div>
+          </div>
+        )}
+      </div>
 
+      {customer && (
       <AddDebtDialog
         open={debtDialogOpen}
         customerName={`${customer.firstName} ${customer.lastName}`}
@@ -427,6 +443,7 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
         isPending={addDebtMutation.isPending}
         error={debtError}
       />
+      )}
     </>
   );
 }
@@ -434,10 +451,11 @@ export function CustomerDetailPanel({ customerId, onDeleted }: CustomerDetailPan
 interface CustomerListItemProps {
   customer: Customer;
   selected: boolean;
+  loading?: boolean;
   onSelect: () => void;
 }
 
-function CustomerListItem({ customer, selected, onSelect }: CustomerListItemProps) {
+function CustomerListItem({ customer, selected, loading, onSelect }: CustomerListItemProps) {
   return (
     <button
       type="button"
@@ -449,9 +467,17 @@ function CustomerListItem({ customer, selected, onSelect }: CustomerListItemProp
           : 'hover:bg-surface-elevated border-l-transparent',
       )}
     >
-      <p className="font-display uppercase text-sm sm:text-base truncate">
-        {customer.firstName} {customer.lastName}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display uppercase text-sm sm:text-base truncate min-w-0">
+          {customer.firstName} {customer.lastName}
+        </p>
+        {loading && (
+          <div
+            className="h-3.5 w-3.5 border-2 border-border border-t-accent rounded-full animate-spin shrink-0"
+            aria-label="Yükleniyor"
+          />
+        )}
+      </div>
       <p className="text-sm text-text-muted mt-0.5">{customer.phone}</p>
       {customer.debtBalance > 0 && (
         <p className="text-xs text-warning tabular-nums mt-1">{customer.debtBalance} ₺ borç</p>
@@ -461,11 +487,11 @@ function CustomerListItem({ customer, selected, onSelect }: CustomerListItemProp
 }
 
 export function CustomersPage() {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingDetailId, setPendingDetailId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -489,23 +515,39 @@ export function CustomersPage() {
   const { items: customers, totalPages } = normalizeCustomersPage(data);
   const listLoading = isLoading && !data;
 
+  const { data: selectedDetail, isError: detailError } = useQuery({
+    queryKey: ['customer', selectedId],
+    queryFn: () => adminApi.getCustomer(selectedId!),
+    enabled: !!selectedId,
+  });
+
+  const detailReady = !!selectedId && selectedDetail?.id === selectedId;
+  const detailFetching =
+    !!selectedId &&
+    !detailError &&
+    (pendingDetailId === selectedId || !detailReady);
+  const detailLoading = useMinimumLoading(detailFetching, MIN_DETAIL_LOADING_MS, selectedId);
+
+  const handleSelectCustomer = (id: string) => {
+    setSelectedId(id);
+    setPendingDetailId(id);
+  };
+
   useEffect(() => {
-    if (customers.length === 0) return;
-    customers.forEach((customer) => {
-      queryClient.prefetchQuery({
-        queryKey: ['customer', customer.id],
-        queryFn: () => adminApi.getCustomer(customer.id),
-      });
-    });
-  }, [customers, queryClient]);
+    if (detailReady && pendingDetailId === selectedId) {
+      setPendingDetailId(null);
+    }
+  }, [detailReady, pendingDetailId, selectedId]);
 
   useEffect(() => {
     if (customers.length === 0) {
       setSelectedId(null);
+      setPendingDetailId(null);
       return;
     }
-    if (!selectedId || !customers.some((c) => c.id === selectedId)) {
-      setSelectedId(customers[0].id);
+    if (selectedId && !customers.some((c) => c.id === selectedId)) {
+      setSelectedId(null);
+      setPendingDetailId(null);
     }
   }, [customers, selectedId]);
 
@@ -526,11 +568,7 @@ export function CustomersPage() {
       <div className="flex-1 min-h-0 grid gap-4 grid-rows-2 lg:grid-cols-2 lg:grid-rows-1">
         <div className={panelShellClass}>
           {listLoading ? (
-            <div className="p-4 animate-pulse space-y-3 overflow-y-auto">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-14 bg-border/30 rounded-sm shrink-0" />
-              ))}
-            </div>
+            <CustomerListSkeleton count={8} />
           ) : customers.length === 0 ? (
             <div className="flex-1 flex items-center justify-center p-6">
               <p className="text-sm text-text-muted text-center">
@@ -550,7 +588,8 @@ export function CustomersPage() {
                     key={customer.id}
                     customer={customer}
                     selected={selectedId === customer.id}
-                    onSelect={() => setSelectedId(customer.id)}
+                    loading={selectedId === customer.id && detailLoading}
+                    onSelect={() => handleSelectCustomer(customer.id)}
                   />
                 ))}
               </div>
@@ -583,6 +622,7 @@ export function CustomersPage() {
 
         <CustomerDetailPanel
           customerId={selectedId}
+          loading={detailLoading}
           onDeleted={() => setSelectedId(null)}
         />
       </div>

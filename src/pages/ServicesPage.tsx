@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionHeader } from '@/components/layout/SectionHeader';
+import { ServicesPageSkeleton } from '@/components/ui/Skeleton';
 import { adminApi, type Service, type ServiceCategory, type ServiceInput, type ServiceCategoryInput, type ServiceCombo, type ServiceComboInput } from '@/lib/api';
 
 const emptyService: ServiceInput = {
@@ -42,20 +43,25 @@ export function ServicesPage() {
   const [comboForm, setComboForm] = useState<ServiceComboInput>(emptyCombo);
   const [isNewCombo, setIsNewCombo] = useState(false);
 
-  const { data: services } = useQuery({
+  const { data: services, isLoading: isLoadingServices } = useQuery({
     queryKey: ['services'],
     queryFn: adminApi.getServices,
+    staleTime: 5 * 60_000,
   });
 
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: isLoadingCategories } = useQuery({
     queryKey: ['service-categories'],
     queryFn: adminApi.getServiceCategories,
+    staleTime: 5 * 60_000,
   });
 
-  const { data: combos } = useQuery({
+  const { data: combos, isLoading: isLoadingCombos } = useQuery({
     queryKey: ['service-combos'],
     queryFn: adminApi.getServiceCombos,
+    staleTime: 5 * 60_000,
   });
+
+  const isLoading = isLoadingServices || isLoadingCategories || isLoadingCombos;
 
   const saveMutation = useMutation({
     mutationFn: (data: { id?: string; input: ServiceInput }) =>
@@ -153,6 +159,10 @@ export function ServicesPage() {
     <div>
       <PageHeader title="Hizmetler" />
 
+      {isLoading ? (
+        <ServicesPageSkeleton />
+      ) : (
+        <>
       <section className="mt-10">
         <SectionHeader
           title="Kategoriler"
@@ -259,6 +269,8 @@ export function ServicesPage() {
           )}
         </div>
       </section>
+        </>
+      )}
 
       {(isNew || editing) && (
         <div className="fixed inset-0 bg-bg/80 flex items-center justify-center p-4 z-50 overflow-y-auto">

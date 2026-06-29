@@ -143,14 +143,16 @@ export function AppointmentCard({
       {!readOnly && a.status === 'pending' && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <button
+            type="button"
             onClick={() => onUpdate('accepted')}
-            className="px-4 py-2.5 sm:py-1.5 bg-success/20 text-success border border-success/40 rounded-sm text-sm uppercase tracking-wider"
+            className="px-4 py-2.5 sm:py-1.5 bg-success/20 text-success border border-success/40 rounded-sm text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:bg-success/30 hover:border-success/60 hover:shadow-sm active:scale-[0.98]"
           >
             Onayla
           </button>
           <button
+            type="button"
             onClick={() => onUpdate('rejected', note)}
-            className="px-4 py-2.5 sm:py-1.5 bg-danger/20 text-danger border border-danger/40 rounded-sm text-sm uppercase tracking-wider"
+            className="px-4 py-2.5 sm:py-1.5 bg-danger/20 text-danger border border-danger/40 rounded-sm text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:bg-danger/30 hover:border-danger/60 hover:shadow-sm active:scale-[0.98]"
           >
             Reddet
           </button>
@@ -160,14 +162,16 @@ export function AppointmentCard({
       {!readOnly && a.status === 'accepted' && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <button
+            type="button"
             onClick={() => onUpdate('completed')}
-            className="px-4 py-2.5 sm:py-1.5 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider"
+            className="px-4 py-2.5 sm:py-1.5 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:bg-accent/30 hover:border-accent/60 hover:shadow-sm active:scale-[0.98]"
           >
             Tamamlandı
           </button>
           <button
+            type="button"
             onClick={() => onUpdate('cancelled', note)}
-            className="px-4 py-2.5 sm:py-1.5 bg-danger/20 text-danger border border-danger/40 rounded-sm text-sm uppercase tracking-wider"
+            className="px-4 py-2.5 sm:py-1.5 bg-danger/20 text-danger border border-danger/40 rounded-sm text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:bg-danger/30 hover:border-danger/60 hover:shadow-sm active:scale-[0.98]"
           >
             İptal
           </button>
@@ -189,7 +193,7 @@ export function AppointmentCard({
             <button
               type="button"
               onClick={() => (onSaveNote ? onSaveNote(note) : onUpdate(a.status, note))}
-              className="shrink-0 px-4 py-2 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider"
+              className="shrink-0 px-4 py-2 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:bg-accent/30 hover:border-accent/60 hover:shadow-sm active:scale-[0.98]"
             >
               Kaydet
             </button>

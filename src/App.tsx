@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { AppShellSkeleton } from '@/components/ui/Skeleton';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { AppointmentsPage } from '@/pages/AppointmentsPage';
@@ -13,13 +14,17 @@ import { CustomersPage } from '@/pages/CustomersPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 60_000, retry: 1 },
+    queries: {
+      staleTime: 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
   },
 });
 
 function LoginRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return null;
+  if (isLoading) return <AppShellSkeleton />;
   if (isAuthenticated) return <Navigate to="/" replace />;
   return <LoginPage />;
 }

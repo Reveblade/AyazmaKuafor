@@ -57,25 +57,28 @@ export function SettingsPage() {
         </div>
 
         <section className="flex flex-col h-full">
-          <SectionHeader title="Şifre Değiştir" />
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col flex-1 bg-surface border border-border rounded-sm p-6 space-y-4"
-          >
-            <div className="text-sm text-text-muted space-y-1 pb-4 border-b border-border">
-              <p>Şifrenizi buradan değiştirin, lütfen güçlü bir şifre oluşturun.</p>
-              <p>
+          <SectionHeader
+            title="Şifre Değiştir"
+            description={
+              <>
+                Şifrenizi buradan değiştirin, lütfen güçlü bir şifre oluşturun. Eğer şifrenizi unuttuysanız{' '}
                 <a
                   href="https://reveblade.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-accent hover:text-accent-hover underline underline-offset-2"
                 >
-                  Eğer şifrenizi unuttuysanız bizimle iletişime geçin.
+                  bizimle iletişime geçin
                 </a>
-              </p>
-            </div>
-
+                .
+              </>
+            }
+            descriptionClassName="max-w-none sm:whitespace-nowrap"
+          />
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col flex-1 bg-surface border border-border rounded-sm p-6 space-y-4"
+          >
             <PasswordField
               label="Mevcut Şifre"
               value={currentPassword}

@@ -11,10 +11,13 @@ import {
   subscribeUnseenCancelled,
 } from '@/lib/cancelledNotifications';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AppointmentListSkeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
 type Tab = 'current' | 'past';
 type AppointmentStatus = Appointment['status'];
+
+const PAGE_SIZE = 20;
 
 const tabFilters: Record<Tab, ('' | AppointmentStatus)[]> = {
   current: ['', 'pending', 'accepted'],
@@ -55,12 +58,57 @@ function getMaxWeeksInMonth(month: Date) {
   return Math.ceil(endOfMonth(month).getDate() / 7);
 }
 
+function PaginationBar({
+  page,
+  totalPages,
+  total,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <p className="text-sm text-text-muted">
+        Toplam {total} randevu
+      </p>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="px-3 py-1.5 text-sm text-text-muted border border-transparent rounded-sm cursor-pointer transition-all duration-200 hover:text-accent hover:border-border hover:bg-surface-elevated active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-transparent disabled:hover:text-text-muted"
+          >
+            ‹ Önceki
+          </button>
+          <span className="text-xs text-text-muted tabular-nums">
+            {page} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="px-3 py-1.5 text-sm text-text-muted border border-transparent rounded-sm cursor-pointer transition-all duration-200 hover:text-accent hover:border-border hover:bg-surface-elevated active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-transparent disabled:hover:text-text-muted"
+          >
+            Sonraki ›
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppointmentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('current');
   const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [pastMonth, setPastMonth] = useState(startOfMonth(new Date()));
   const [pastWeek, setPastWeek] = useState(() => getMaxWeeksInMonth(startOfMonth(new Date())));
+  const [pastPage, setPastPage] = useState(1);
   const [unseenCount, setUnseenCount] = useState(getUnseenCancelledCount);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const pendingHighlightRef = useRef<{ id: string; date: string } | null>(null);
@@ -77,11 +125,18 @@ export function AppointmentsPage() {
     if (!highlightId || !highlightDate) return;
 
     pendingHighlightRef.current = { id: highlightId, date: highlightDate };
-    setTab('past');
+    const targetTab: Tab = searchParams.get('tab') === 'current' ? 'current' : 'past';
+    setTab(targetTab);
     setFilter('');
-    const parsed = parseISO(highlightDate);
-    setPastMonth(startOfMonth(parsed));
-    setPastWeek(getWeekOfMonth(highlightDate));
+
+    if (targetTab === 'current') {
+      setCurrentPage(1);
+    } else {
+      setPastPage(1);
+      const parsed = parseISO(highlightDate);
+      setPastMonth(startOfMonth(parsed));
+      setPastWeek(getWeekOfMonth(highlightDate));
+    }
 
     const next = new URLSearchParams(searchParams);
     next.delete('highlight');
@@ -90,22 +145,36 @@ export function AppointmentsPage() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const { data: currentAppointments, isLoading: isLoadingCurrent } = useQuery({
-    queryKey: ['appointments', 'current', filter],
+  const {
+    data: currentData,
+    isLoading: isLoadingCurrent,
+    isFetching: isFetchingCurrent,
+  } = useQuery({
+    queryKey: ['appointments', 'current', filter, currentPage],
     queryFn: () =>
-      adminApi.getAppointments({
+      adminApi.getAppointmentsPaginated({
         scope: 'current',
+        page: currentPage,
+        limit: PAGE_SIZE,
         ...(filter ? { status: filter } : {}),
       }),
     enabled: tab === 'current',
+    placeholderData: keepPreviousData,
   });
 
-  const { data: pastAppointments, isLoading: isLoadingPast, isFetching: isFetchingPast } = useQuery({
-    queryKey: ['appointments', 'past', filter, pastMonthKey],
+  const {
+    data: pastData,
+    isLoading: isLoadingPast,
+    isFetching: isFetchingPast,
+  } = useQuery({
+    queryKey: ['appointments', 'past', filter, pastMonthKey, pastWeek, pastPage],
     queryFn: () =>
-      adminApi.getAppointments({
+      adminApi.getAppointmentsPaginated({
         scope: 'past',
         month: pastMonthKey,
+        week: pastWeek,
+        page: pastPage,
+        limit: PAGE_SIZE,
         ...(filter ? { status: filter } : {}),
       }),
     enabled: tab === 'past',
@@ -113,48 +182,68 @@ export function AppointmentsPage() {
   });
 
   const visibleAppointments = useMemo(
-    () => sortAppointments(currentAppointments ?? [], 'current'),
-    [currentAppointments],
+    () => sortAppointments(currentData?.items ?? [], 'current'),
+    [currentData?.items],
   );
-  const isLoading = tab === 'current' ? isLoadingCurrent : isLoadingPast && !pastAppointments;
 
-  const pastWeekAppointments = useMemo(() => {
-    if (tab !== 'past' || !pastAppointments?.length) return [];
-    const filtered = pastAppointments.filter((appointment) => getWeekOfMonth(appointment.date) === pastWeek);
-    return sortAppointments(filtered, 'past');
-  }, [tab, pastAppointments, pastWeek]);
+  const pastWeekAppointments = useMemo(
+    () => sortAppointments(pastData?.items ?? [], 'past'),
+    [pastData?.items],
+  );
+
+  const isLoading = tab === 'current'
+    ? isLoadingCurrent && !currentData
+    : isLoadingPast && !pastData;
+
+  const activeAppointments = tab === 'current' ? visibleAppointments : pastWeekAppointments;
+  const activeData = tab === 'current' ? currentData : pastData;
+  const activePage = tab === 'current' ? currentPage : pastPage;
+  const isFetching = tab === 'current' ? isFetchingCurrent : isFetchingPast;
 
   useEffect(() => {
     const pending = pendingHighlightRef.current;
-    if (!pending || tab !== 'past' || isLoadingPast || isFetchingPast) return;
+    if (!pending) return;
+    if (tab === 'past' && (isLoadingPast || isFetchingPast || !pastData)) return;
+    if (tab === 'current' && (isLoadingCurrent || isFetchingCurrent || !currentData)) return;
 
-    const inWeek = pastWeekAppointments.some((a) => a.id === pending.id);
-    if (!inWeek) {
-      const inMonth = pastAppointments?.find((a) => a.id === pending.id);
-      if (inMonth) {
-        const week = getWeekOfMonth(inMonth.date);
-        if (week !== pastWeek) {
-          setPastWeek(week);
-          return;
-        }
-      }
+    const data = tab === 'past' ? pastData : currentData;
+    const page = tab === 'past' ? pastPage : currentPage;
+    const setPage = tab === 'past' ? setPastPage : setCurrentPage;
+    if (!data) return;
+
+    const found = data.items.some((a) => a.id === pending.id);
+    if (found) {
       pendingHighlightRef.current = null;
+      setHighlightedId(pending.id);
+
+      requestAnimationFrame(() => {
+        document.getElementById(`appointment-${pending.id}`)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      });
+
+      const timer = window.setTimeout(() => setHighlightedId(null), 2800);
+      return () => window.clearTimeout(timer);
+    }
+
+    if (page < data.totalPages) {
+      setPage(page + 1);
       return;
     }
 
     pendingHighlightRef.current = null;
-    setHighlightedId(pending.id);
-
-    requestAnimationFrame(() => {
-      document.getElementById(`appointment-${pending.id}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    });
-
-    const timer = window.setTimeout(() => setHighlightedId(null), 2800);
-    return () => window.clearTimeout(timer);
-  }, [tab, pastWeekAppointments, pastAppointments, pastWeek, isLoadingPast, isFetchingPast]);
+  }, [
+    tab,
+    pastData,
+    pastPage,
+    currentData,
+    currentPage,
+    isLoadingPast,
+    isFetchingPast,
+    isLoadingCurrent,
+    isFetchingCurrent,
+  ]);
 
   const mutation = useMutation({
     mutationFn: ({
@@ -166,7 +255,12 @@ export function AppointmentsPage() {
       status?: string;
       adminNote?: string;
     }) => adminApi.updateAppointment(id, { ...(status ? { status } : {}), adminNote }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: tab === 'current' ? ['appointments', 'current'] : ['appointments', 'past'],
+      });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
   });
 
   return (
@@ -179,10 +273,13 @@ export function AppointmentsPage() {
           ['past', 'Geçmiş'],
         ] as const).map(([value, label]) => (
           <button
+            type="button"
             key={value}
             onClick={() => {
               setTab(value);
               setFilter('');
+              setCurrentPage(1);
+              setPastPage(1);
               if (value === 'past') {
                 const currentMonth = startOfMonth(new Date());
                 setPastMonth(currentMonth);
@@ -190,8 +287,10 @@ export function AppointmentsPage() {
               }
             }}
             className={cn(
-              'relative px-4 py-2.5 text-sm uppercase tracking-wider border-b-2 -mb-px transition-colors',
-              tab === value ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text',
+              'relative px-4 py-2.5 text-sm uppercase tracking-wider border-b-2 -mb-px cursor-pointer transition-all duration-200 active:scale-[0.98]',
+              tab === value
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-muted hover:text-text hover:bg-surface/50',
             )}
           >
             {label}
@@ -212,8 +311,9 @@ export function AppointmentsPage() {
               onClick={() => {
                 setPastMonth(subMonths(pastMonth, 1));
                 setPastWeek(getMaxWeeksInMonth(subMonths(pastMonth, 1)));
+                setPastPage(1);
               }}
-              className="text-text-muted hover:text-accent p-2 text-xl leading-none"
+              className="text-text-muted hover:text-accent p-2 text-xl leading-none rounded-sm cursor-pointer transition-all duration-200 hover:bg-surface-elevated active:scale-90"
               aria-label="Önceki ay"
             >
               ‹
@@ -227,9 +327,10 @@ export function AppointmentsPage() {
                 const nextMonth = addMonths(pastMonth, 1);
                 setPastMonth(nextMonth);
                 setPastWeek(getMaxWeeksInMonth(nextMonth));
+                setPastPage(1);
               }}
               disabled={pastMonth >= startOfMonth(new Date())}
-              className="text-text-muted hover:text-accent p-2 text-xl leading-none disabled:opacity-30 disabled:cursor-not-allowed"
+              className="text-text-muted hover:text-accent p-2 text-xl leading-none rounded-sm cursor-pointer transition-all duration-200 hover:bg-surface-elevated active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-muted"
               aria-label="Sonraki ay"
             >
               ›
@@ -239,9 +340,12 @@ export function AppointmentsPage() {
           <div className="flex items-center justify-between gap-4">
             <button
               type="button"
-              onClick={() => setPastWeek((week) => week - 1)}
+              onClick={() => {
+                setPastWeek((week) => week - 1);
+                setPastPage(1);
+              }}
               disabled={pastWeek <= 1}
-              className="text-text-muted hover:text-accent p-2 text-xl leading-none disabled:opacity-30 disabled:cursor-not-allowed"
+              className="text-text-muted hover:text-accent p-2 text-xl leading-none rounded-sm cursor-pointer transition-all duration-200 hover:bg-surface-elevated active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-muted"
               aria-label="Önceki hafta"
             >
               ‹
@@ -251,9 +355,12 @@ export function AppointmentsPage() {
             </p>
             <button
               type="button"
-              onClick={() => setPastWeek((week) => week + 1)}
+              onClick={() => {
+                setPastWeek((week) => week + 1);
+                setPastPage(1);
+              }}
               disabled={pastWeek >= maxWeeksInPastMonth}
-              className="text-text-muted hover:text-accent p-2 text-xl leading-none disabled:opacity-30 disabled:cursor-not-allowed"
+              className="text-text-muted hover:text-accent p-2 text-xl leading-none rounded-sm cursor-pointer transition-all duration-200 hover:bg-surface-elevated active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-muted"
               aria-label="Sonraki hafta"
             >
               ›
@@ -265,11 +372,18 @@ export function AppointmentsPage() {
       <div className="mt-4 flex flex-wrap gap-2">
         {tabFilters[tab].map((s) => (
           <button
+            type="button"
             key={s}
-            onClick={() => setFilter(s)}
+            onClick={() => {
+              setFilter(s);
+              setCurrentPage(1);
+              setPastPage(1);
+            }}
             className={cn(
-              'px-3 py-1.5 text-xs uppercase tracking-wider border rounded-sm transition-colors',
-              filter === s ? 'border-accent bg-accent/20 text-accent' : 'border-border text-text-muted',
+              'px-3 py-1.5 text-xs uppercase tracking-wider border rounded-sm cursor-pointer transition-all duration-200 active:scale-[0.98]',
+              filter === s
+                ? 'border-accent bg-accent/20 text-accent hover:bg-accent/30 hover:border-accent/60 hover:shadow-sm'
+                : 'border-border text-text-muted hover:border-accent/40 hover:bg-accent/5 hover:text-text',
             )}
           >
             {statusLabels[s]}
@@ -277,9 +391,13 @@ export function AppointmentsPage() {
         ))}
       </div>
 
-      {isLoading && <p className="mt-8 text-text-muted">Yükleniyor...</p>}
+      {isLoading && (
+        <div className="mt-6 sm:mt-8">
+          <AppointmentListSkeleton count={4} />
+        </div>
+      )}
 
-      {!isLoading && (tab === 'current' ? visibleAppointments.length === 0 : pastWeekAppointments.length === 0) && (
+      {!isLoading && activeAppointments.length === 0 && (
         <p className="mt-8 text-text-muted text-sm">
           {tab === 'current'
             ? 'Güncel randevu bulunmuyor.'
@@ -290,12 +408,12 @@ export function AppointmentsPage() {
       <div
         className={cn(
           'mt-6 sm:mt-8 transition-opacity',
-          tab === 'past' && isFetchingPast && pastAppointments ? 'opacity-60' : 'opacity-100',
+          isFetching && activeData ? 'opacity-60' : 'opacity-100',
         )}
       >
-        {(tab === 'current' ? visibleAppointments : pastWeekAppointments).length > 0 && (
+        {activeAppointments.length > 0 && (
           <div className="grid gap-3 sm:gap-4">
-            {(tab === 'current' ? visibleAppointments : pastWeekAppointments).map((a) => (
+            {activeAppointments.map((a) => (
               <AppointmentCard
                 key={a.id}
                 appointment={a}
@@ -309,10 +427,13 @@ export function AppointmentsPage() {
         )}
       </div>
 
-      {tab === 'past' && pastAppointments && pastAppointments.length > 0 && (
-        <p className="mt-8 text-sm text-text-muted">
-          Toplam {pastAppointments.length} randevu
-        </p>
+      {activeData && activeData.total > 0 && (
+        <PaginationBar
+          page={activePage}
+          totalPages={activeData.totalPages}
+          total={activeData.total}
+          onPageChange={tab === 'current' ? setCurrentPage : setPastPage}
+        />
       )}
     </div>
   );

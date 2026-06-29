@@ -2,6 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { cn, filterPastSlotsForToday, formatSelectedDurationLabel } from '@/lib/utils';
 import type { DayScheduleResponse, ScheduleSlot } from '@/lib/api';
+import { DaySchedulePanelSkeleton } from '@/components/ui/Skeleton';
 
 export type SchedulePanelMode = 'block' | 'book';
 
@@ -49,19 +50,7 @@ export function DaySchedulePanel({
     'border border-border rounded-sm p-4 bg-surface h-full min-h-0 flex flex-col overflow-hidden';
 
   if (isLoading) {
-    return (
-      <div className={panelClass}>
-        <h3 className="font-display uppercase tracking-wider text-sm mb-4 shrink-0">{formattedDate}</h3>
-        <div className="flex flex-col gap-0 flex-1 min-h-0 animate-pulse overflow-y-auto">
-          {Array.from({ length: 16 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-3.5 border-b border-border/40">
-              <div className="h-5 w-32 bg-border/30 rounded-sm" />
-              <div className="h-4 w-20 bg-border/30 rounded-sm" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <DaySchedulePanelSkeleton dateLabel={formattedDate} />;
   }
 
   if (!schedule || schedule.closed) {

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { adminApi, type Appointment } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { CalendarGridSkeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
 type AppointmentStatus = Appointment['status'];
@@ -29,6 +31,7 @@ function formatDayHeader(date: string) {
 }
 
 export function CalendarPage() {
+  const navigate = useNavigate();
   const thisMonth = startOfMonth(new Date());
   const [currentMonth, setCurrentMonth] = useState(thisMonth);
 
@@ -86,7 +89,7 @@ export function CalendarPage() {
         </button>
       </div>
 
-      {isLoading && <p className="mt-8 text-text-muted">Yükleniyor...</p>}
+      {isLoading && <CalendarGridSkeleton count={6} />}
 
       {!isLoading && daysWithAppointments.length === 0 && (
         <p className="mt-8 text-text-muted text-sm">Bu ay için gelecek randevu bulunmuyor.</p>
@@ -104,9 +107,15 @@ export function CalendarPage() {
 
             <div className="mt-3 flex flex-col gap-2 flex-1">
               {dayAppointments.map((appointment) => (
-                <div
+                <button
                   key={appointment.id}
-                  className="bg-bg/60 border border-border rounded-sm px-3 py-2.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between"
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/randevular?tab=current&highlight=${appointment.id}&date=${appointment.date}`,
+                    )
+                  }
+                  className="bg-bg/60 border border-border rounded-sm px-3 py-2.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between text-left w-full transition-colors hover:border-accent/50 hover:bg-accent/5 cursor-pointer"
                 >
                   <div className="min-w-0">
                     <p className="font-display uppercase truncate">
@@ -124,7 +133,7 @@ export function CalendarPage() {
                   >
                     {statusLabels[appointment.status]}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>

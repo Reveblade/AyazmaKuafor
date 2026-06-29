@@ -100,6 +100,7 @@ export function CreateAppointmentDialog({
     queryKey: ['services'],
     queryFn: adminApi.getServices,
     enabled: open,
+    staleTime: 5 * 60_000,
   });
 
   const activeServices = services?.filter((s) => s.active) ?? [];
@@ -110,8 +111,11 @@ export function CreateAppointmentDialog({
   }, [search]);
 
   const { data: customerMatches } = useQuery({
-    queryKey: ['customers', 'search', debouncedSearch],
-    queryFn: () => adminApi.searchCustomers(debouncedSearch),
+    queryKey: ['customers', debouncedSearch, 1],
+    queryFn: async () => {
+      const result = await adminApi.getCustomers({ search: debouncedSearch, page: 1, limit: 20 });
+      return Array.isArray(result) ? result : result.items;
+    },
     enabled: open && searchFocused && debouncedSearch.length >= 2,
   });
 
@@ -131,14 +135,13 @@ export function CreateAppointmentDialog({
 
   const createMutation = useMutation({
     mutationFn: async (payload: Omit<CreateAppointmentInput, 'startTime' | 'date'>) => {
-      for (const startTime of startTimes) {
-        await adminApi.createAppointment({ ...payload, date, startTime });
-      }
+      await Promise.all(
+        startTimes.map((startTime) =>
+          adminApi.createAppointment({ ...payload, date, startTime }),
+        ),
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['day-schedule'] });
-      queryClient.invalidateQueries({ queryKey: ['month-availability'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       onSuccess();
       onClose();

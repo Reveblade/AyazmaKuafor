@@ -19,12 +19,16 @@ import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 
 type DayStatus = 'closed' | 'available' | 'full' | 'past';
 
-export function ScheduleCalendar() {
+type ScheduleCalendarProps = {
+  panelMode: SchedulePanelMode;
+  onPanelModeChange: (mode: SchedulePanelMode) => void;
+};
+
+export function ScheduleCalendar({ panelMode, onPanelModeChange }: ScheduleCalendarProps) {
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [blockedStarts, setBlockedStarts] = useState<Set<string>>(new Set());
-  const [panelMode, setPanelMode] = useState<SchedulePanelMode>('block');
   const [selectedStartTimes, setSelectedStartTimes] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const lastBookingClickRef = useRef<string | null>(null);
@@ -157,7 +161,7 @@ export function ScheduleCalendar() {
   const weekDays = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
   const panelHeightStyle =
     isWideLayout && calendarHeight ? { height: calendarHeight } : undefined;
-  const panelWrapperClass = 'min-h-[320px] lg:min-h-0 lg:overflow-hidden flex flex-col';
+  const panelWrapperClass = 'min-h-[320px] lg:min-h-0 lg:overflow-hidden flex flex-col h-full';
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -256,10 +260,10 @@ export function ScheduleCalendar() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
       <div
         ref={calendarRef}
-        className="border border-border rounded-sm p-4 bg-surface"
+        className="border border-border rounded-sm p-4 bg-surface h-full"
       >
         <div className="flex items-center justify-between mb-4">
           <button
@@ -331,32 +335,6 @@ export function ScheduleCalendar() {
 
       {selectedDate ? (
         <div className={panelWrapperClass} style={panelHeightStyle}>
-          <div className="flex flex-wrap gap-2 mb-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => setPanelMode('block')}
-              className={cn(
-                'px-3 py-2 text-sm uppercase tracking-wider border rounded-sm transition-colors',
-                panelMode === 'block'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-border text-text-muted hover:text-text',
-              )}
-            >
-              Saat Kapat / Aç
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanelMode('book')}
-              className={cn(
-                'px-3 py-2 text-sm uppercase tracking-wider border rounded-sm transition-colors',
-                panelMode === 'book'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-border text-text-muted hover:text-text',
-              )}
-            >
-              Randevu Yaz
-            </button>
-          </div>
           <DaySchedulePanel
             date={selectedDate}
             schedule={schedule}
@@ -394,13 +372,16 @@ export function ScheduleCalendar() {
             onClose={() => setDialogOpen(false)}
             onSuccess={() => {
               setSelectedStartTimes(new Set());
-              setPanelMode('block');
+              onPanelModeChange('block');
             }}
           />
         </div>
       ) : (
         <div
-          className={cn(panelWrapperClass, 'border border-border rounded-sm p-4 bg-surface items-center justify-center')}
+          className={cn(
+            panelWrapperClass,
+            'border border-border rounded-sm p-4 bg-surface items-center justify-center',
+          )}
           style={panelHeightStyle}
         >
           <p className="text-text-muted text-sm">Saatleri düzenlemek için takvimden bir gün seçin.</p>

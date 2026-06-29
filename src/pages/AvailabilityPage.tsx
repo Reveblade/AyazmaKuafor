@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
+import { ScheduleModeToggle } from '@/components/schedule/ScheduleModeToggle';
+import type { SchedulePanelMode } from '@/components/schedule/DaySchedulePanel';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionHeader } from '@/components/layout/SectionHeader';
 
 export function AvailabilityPage() {
+  const [panelMode, setPanelMode] = useState<SchedulePanelMode>('block');
+
   return (
     <div>
       <PageHeader title="Müsaitlik" />
@@ -10,9 +15,9 @@ export function AvailabilityPage() {
       <section>
         <SectionHeader
           title="Günlük / Saatlik Kapatma"
-          description="Takvimden bir gün seçin. Saat dilimlerini kapatmak/açmak için “Saat Kapat / Aç” modunu, müşteri adına randevu oluşturmak için “Randevu Yaz” modunu kullanın. Dolu saatler (randevulu) değiştirilemez."
+          actions={<ScheduleModeToggle mode={panelMode} onModeChange={setPanelMode} />}
         />
-        <ScheduleCalendar />
+        <ScheduleCalendar panelMode={panelMode} onPanelModeChange={setPanelMode} />
       </section>
     </div>
   );

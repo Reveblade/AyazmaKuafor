@@ -20,6 +20,7 @@ const links = [
   { to: '/takvim', label: 'Takvim' },
   { to: '/musaitlik', label: 'Müsaitlik' },
   { to: '/hizmetler', label: 'Hizmetler' },
+  { to: '/musteriler', label: 'Müşteriler' },
   { to: '/ayarlar', label: 'Ayarlar' },
 ];
 

@@ -1,14 +1,19 @@
 import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, filterPastSlotsForToday, formatSelectedDurationLabel } from '@/lib/utils';
 import type { DayScheduleResponse, ScheduleSlot } from '@/lib/api';
+
+export type SchedulePanelMode = 'block' | 'book';
 
 interface DaySchedulePanelProps {
   date: string;
   schedule: DayScheduleResponse | undefined;
   isLoading?: boolean;
+  mode: SchedulePanelMode;
   blockedStarts: Set<string>;
+  selectedStartTimes: Set<string>;
   onToggleSlot: (startTime: string) => void;
+  onSelectBookingSlot: (startTime: string, shiftKey: boolean) => void;
   onToggleAllDay: () => void;
   isSaving?: boolean;
 }
@@ -29,12 +34,16 @@ export function DaySchedulePanel({
   date,
   schedule,
   isLoading,
+  mode,
   blockedStarts,
+  selectedStartTimes,
   onToggleSlot,
+  onSelectBookingSlot,
   onToggleAllDay,
   isSaving,
 }: DaySchedulePanelProps) {
   const formattedDate = format(parseISO(date), 'd MMMM yyyy, EEEE', { locale: tr });
+  const visibleSlots = schedule ? filterPastSlotsForToday(date, schedule.slots) : [];
 
   const panelClass =
     'border border-border rounded-sm p-4 bg-surface h-full min-h-0 flex flex-col overflow-hidden';
@@ -76,14 +85,16 @@ export function DaySchedulePanel({
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onToggleAllDay}
-            disabled={isSaving}
-            className="px-3 py-2 text-sm uppercase tracking-wider text-accent hover:text-accent-hover disabled:opacity-50 shrink-0"
-          >
-            Tüm günü aç
-          </button>
+          {mode === 'block' && (
+            <button
+              type="button"
+              onClick={onToggleAllDay}
+              disabled={isSaving}
+              className="px-3 py-2 text-sm uppercase tracking-wider text-accent hover:text-accent-hover disabled:opacity-50 shrink-0"
+            >
+              Tüm günü aç
+            </button>
+          )}
         </div>
         <p className="text-text-muted text-sm">Tüm gün randevuya kapalı.</p>
       </div>
@@ -100,25 +111,36 @@ export function DaySchedulePanel({
               {schedule.openTime} – {schedule.closeTime}
             </p>
           )}
+          {mode === 'book' && (
+            <p className="text-xs text-accent mt-2">
+              {selectedStartTimes.size > 0
+                ? formatSelectedDurationLabel(selectedStartTimes.size, schedule.slotInterval)
+                : 'Shift+tık: seçili saate tıklarsanız aralık kalkar, değilse eklenir'}
+            </p>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={onToggleAllDay}
-          disabled={isSaving}
-          className="px-3 py-2 text-sm uppercase tracking-wider text-danger hover:opacity-80 disabled:opacity-50 shrink-0"
-        >
-          Tüm günü kapat
-        </button>
+        {mode === 'block' && (
+          <button
+            type="button"
+            onClick={onToggleAllDay}
+            disabled={isSaving}
+            className="px-3 py-2 text-sm uppercase tracking-wider text-danger hover:opacity-80 disabled:opacity-50 shrink-0"
+          >
+            Tüm günü kapat
+          </button>
+        )}
       </div>
 
-      {schedule.slots.length === 0 ? (
+      {visibleSlots.length === 0 ? (
         <p className="text-text-muted text-sm">Bu gün için saat bulunmuyor.</p>
       ) : (
         <div className="flex flex-col gap-0 flex-1 min-h-0 overflow-y-auto -mx-1">
-          {schedule.slots.map((slot) => {
+          {visibleSlots.map((slot) => {
             const isBlocked = blockedStarts.has(slot.startTime);
             const isBooked = slot.status === 'booked';
-            const toggleable = !isBooked;
+            const isSelected = mode === 'book' && selectedStartTimes.has(slot.startTime);
+            const selectableInBookMode = slot.status === 'available';
+            const toggleable = mode === 'block' ? !isBooked : selectableInBookMode;
             const { label, tone } = getStatusLabel(slot, isBlocked);
 
             const RowTag = toggleable ? 'button' : 'div';
@@ -128,11 +150,16 @@ export function DaySchedulePanel({
                 key={slot.startTime}
                 type={toggleable ? 'button' : undefined}
                 disabled={toggleable ? isSaving : undefined}
-                onClick={() => toggleable && onToggleSlot(slot.startTime)}
+                onClick={(e) => {
+                  if (!toggleable) return;
+                  if (mode === 'book') onSelectBookingSlot(slot.startTime, e.shiftKey);
+                  else onToggleSlot(slot.startTime);
+                }}
                 className={cn(
                   'flex items-center justify-between gap-4 px-3 py-3.5 border-b border-border/60 text-base text-left w-full transition-colors min-h-[52px]',
                   toggleable && 'hover:bg-surface-elevated cursor-pointer active:bg-surface-elevated',
                   !toggleable && 'cursor-default',
+                  isSelected && 'bg-accent/10 ring-1 ring-inset ring-accent/40',
                 )}
               >
                 <span className="font-mono tabular-nums shrink-0">
@@ -141,7 +168,7 @@ export function DaySchedulePanel({
                   {slot.endTime}
                 </span>
                 <span className={cn('text-sm uppercase tracking-wider shrink-0 font-medium', toneStyles[tone])}>
-                  {label}
+                  {mode === 'book' && isSelected ? 'Seçildi' : label}
                 </span>
               </RowTag>
             );

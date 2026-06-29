@@ -105,6 +105,26 @@ export const adminApi = {
       `/availability/month?${params}`,
     );
   },
+  createAppointment: (data: CreateAppointmentInput) =>
+    request<Appointment>('/admin/appointments', { method: 'POST', body: JSON.stringify(data) }),
+  searchCustomers: (search: string) =>
+    request<Customer[]>(`/admin/customers?${new URLSearchParams({ search })}`),
+  getCustomers: (params?: { search?: string; page?: number; limit?: number; hasDebt?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.hasDebt) q.set('hasDebt', 'true');
+    return request<PaginatedCustomers | Customer[]>(`/admin/customers?${q}`);
+  },
+  getCustomersWithDebt: () => request<Customer[]>('/admin/customers?hasDebt=true'),
+  getCustomer: (id: string) => request<CustomerDetail>(`/admin/customers/${id}`),
+  updateCustomer: (id: string, data: CustomerInput) =>
+    request<Customer>(`/admin/customers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCustomer: (id: string) =>
+    request<{ ok: boolean }>(`/admin/customers/${id}`, { method: 'DELETE' }),
+  addCustomerDebt: (id: string, data: AddCustomerDebtInput) =>
+    request<CustomerDetail>(`/admin/customers/${id}/debt`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export interface LocalizedText { tr: string; en: string; }
@@ -216,6 +236,54 @@ export interface DayScheduleResponse {
   closed: boolean;
   allDayBlocked: boolean;
   slots: ScheduleSlot[];
+}
+
+export interface Customer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  debtBalance: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerDebtEntry {
+  id: string;
+  amount: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface CustomerDetail extends Customer {
+  debtHistory: CustomerDebtEntry[];
+  appointments: Appointment[];
+}
+
+export type CustomerInput = Pick<Customer, 'firstName' | 'lastName' | 'phone'>;
+
+export interface AddCustomerDebtInput {
+  amount: number;
+  note?: string;
+}
+
+export interface PaginatedCustomers {
+  items: Customer[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface CreateAppointmentInput {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  serviceIds: string[];
+  date: string;
+  startTime: string;
+  notes?: string;
+  status?: 'pending' | 'accepted';
 }
 
 export { API_URL };

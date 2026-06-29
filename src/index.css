@@ -63,8 +63,31 @@
   }
 }
 
+@keyframes appointment-highlight {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 0%, transparent);
+    border-color: var(--color-accent);
+  }
+  20% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 40%, transparent);
+    border-color: var(--color-accent);
+  }
+  80% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 40%, transparent);
+    border-color: var(--color-accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    border-color: var(--color-border);
+  }
+}
+
 @layer utilities {
   .font-display { font-family: var(--font-display); }
+
+  .animate-appointment-highlight {
+    animation: appointment-highlight 2.5s ease-in-out;
+  }
 
   .scrollbar-hidden {
     scrollbar-width: none;

@@ -32,16 +32,24 @@ export function AppointmentCard({
   appointment: a,
   readOnly,
   showCancelNotice,
+  highlighted,
   onUpdate,
+  onSaveNote,
 }: {
   appointment: Appointment;
   readOnly?: boolean;
   showCancelNotice?: boolean;
+  highlighted?: boolean;
   onUpdate: (status: string, adminNote?: string) => void;
+  onSaveNote?: (adminNote: string) => void;
 }) {
   const [note, setNote] = useState(a.adminNote ?? '');
   const cardRef = useRef<HTMLDivElement>(null);
   const services = a.services?.map((s) => s.name.tr).join(', ');
+
+  useEffect(() => {
+    setNote(a.adminNote ?? '');
+  }, [a.adminNote]);
 
   useEffect(() => {
     if (!showCancelNotice || !cardRef.current) return;
@@ -64,9 +72,11 @@ export function AppointmentCard({
   return (
     <div
       ref={cardRef}
+      id={`appointment-${a.id}`}
       className={cn(
         'bg-surface border rounded-sm p-4 sm:p-5',
         showCancelNotice ? 'border-danger/50 ring-1 ring-danger/20' : 'border-border',
+        highlighted && 'animate-appointment-highlight',
       )}
     >
       {showCancelNotice && (
@@ -168,13 +178,23 @@ export function AppointmentCard({
         <label className="block text-xs uppercase tracking-wider text-text-muted mb-1.5">
           Admin notu
         </label>
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Not ekle..."
-          readOnly={readOnly}
-          className="w-full bg-bg border border-border rounded-sm px-3 py-2 text-sm text-text disabled:opacity-60"
-        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Not ekle..."
+            className="w-full sm:flex-1 bg-bg border border-border rounded-sm px-3 py-2 text-sm text-text"
+          />
+          {note !== (a.adminNote ?? '') && (
+            <button
+              type="button"
+              onClick={() => (onSaveNote ? onSaveNote(note) : onUpdate(a.status, note))}
+              className="shrink-0 px-4 py-2 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider"
+            >
+              Kaydet
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { adminApi, type Appointment } from '@/lib/api';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 
 type AppointmentStatus = Appointment['status'];
@@ -61,9 +62,9 @@ export function CalendarPage() {
 
   return (
     <div className="w-full">
-      <h1 className="font-display text-2xl sm:text-3xl uppercase">Takvim</h1>
+      <PageHeader title="Takvim" />
 
-      <div className="mt-6 flex items-center justify-between w-full">
+      <div className="flex items-center justify-between w-full">
         <button
           type="button"
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}

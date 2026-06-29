@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, type AvailabilityRuleInput } from '@/lib/api';
+import { SectionHeader } from '@/components/layout/SectionHeader';
 import { DAY_NAMES } from '@/lib/utils';
 
 const defaultRules: AvailabilityRuleInput[] = DAY_NAMES.map((_, i) => ({
@@ -42,10 +43,10 @@ export function WeeklyHoursSettings() {
 
   return (
     <section>
-      <h2 className="font-display text-xl uppercase mb-4">Haftalık Saatler</h2>
-      <p className="text-sm text-text-muted mb-4 max-w-xl">
-        Salonun varsayılan açılış ve kapanış saatlerini belirleyin. Kapalı günler randevuya açılmaz.
-      </p>
+      <SectionHeader
+        title="Haftalık Saatler"
+        description="Salonun varsayılan açılış ve kapanış saatlerini belirleyin. Kapalı günler randevuya açılmaz."
+      />
       <div className="grid gap-3 max-w-xl">
         {rules.map((rule, i) => (
           <div key={rule.dayOfWeek} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 bg-surface border border-border rounded-sm p-3">

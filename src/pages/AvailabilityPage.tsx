@@ -1,16 +1,17 @@
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { SectionHeader } from '@/components/layout/SectionHeader';
 
 export function AvailabilityPage() {
   return (
     <div>
-      <h1 className="font-display text-2xl sm:text-3xl uppercase">Müsaitlik</h1>
+      <PageHeader title="Müsaitlik" />
 
-      <section className="mt-8">
-        <h2 className="font-display text-lg uppercase mb-4">Günlük / Saatlik Kapatma</h2>
-        <p className="text-sm text-text-muted mb-4 max-w-2xl">
-          Takvimden bir gün seçin. Sağ tarafta saat dilimlerini tıklayarak randevuya kapatın veya açın.
-          Dolu saatler (randevulu) değiştirilemez.
-        </p>
+      <section>
+        <SectionHeader
+          title="Günlük / Saatlik Kapatma"
+          description="Takvimden bir gün seçin. Saat dilimlerini kapatmak/açmak için “Saat Kapat / Aç” modunu, müşteri adına randevu oluşturmak için “Randevu Yaz” modunu kullanın. Dolu saatler (randevulu) değiştirilemez."
+        />
         <ScheduleCalendar />
       </section>
     </div>

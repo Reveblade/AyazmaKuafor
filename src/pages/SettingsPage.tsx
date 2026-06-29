@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { SectionHeader } from '@/components/layout/SectionHeader';
 import { WeeklyHoursSettings } from '@/components/settings/WeeklyHoursSettings';
 
 function EyeIcon() {
@@ -103,12 +105,12 @@ export function SettingsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl sm:text-3xl uppercase">Ayarlar</h1>
+      <PageHeader title="Ayarlar" />
 
       <WeeklyHoursSettings />
 
-      <section className="mt-12 max-w-md">
-        <h2 className="font-display text-xl uppercase mb-4">Şifre Değiştir</h2>
+      <section className="mt-10 max-w-md">
+        <SectionHeader title="Şifre Değiştir" />
         <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-sm p-6 space-y-4">
           <PasswordField
             label="Mevcut Şifre"

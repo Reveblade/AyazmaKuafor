@@ -13,8 +13,9 @@ import {
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { adminApi } from '@/lib/api';
-import { cn } from '@/lib/utils';
-import { DaySchedulePanel } from './DaySchedulePanel';
+import { cn, filterPastSlotsForToday, formatDurationTr } from '@/lib/utils';
+import { DaySchedulePanel, type SchedulePanelMode } from './DaySchedulePanel';
+import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 
 type DayStatus = 'closed' | 'available' | 'full' | 'past';
 
@@ -23,6 +24,10 @@ export function ScheduleCalendar() {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [blockedStarts, setBlockedStarts] = useState<Set<string>>(new Set());
+  const [panelMode, setPanelMode] = useState<SchedulePanelMode>('block');
+  const [selectedStartTimes, setSelectedStartTimes] = useState<Set<string>>(new Set());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const lastBookingClickRef = useRef<string | null>(null);
   const today = startOfDay(new Date());
 
   const year = currentMonth.getFullYear();
@@ -43,6 +48,24 @@ export function ScheduleCalendar() {
   const scheduleReady = scheduleData?.date === selectedDate;
   const schedule = scheduleReady ? scheduleData : undefined;
   const scheduleLoading = !!selectedDate && !scheduleReady && scheduleFetching;
+  const visibleScheduleSlots = useMemo(
+    () => (schedule && selectedDate ? filterPastSlotsForToday(selectedDate, schedule.slots) : []),
+    [schedule, selectedDate],
+  );
+
+  useEffect(() => {
+    setSelectedStartTimes(new Set());
+    setDialogOpen(false);
+    lastBookingClickRef.current = null;
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (panelMode === 'block') {
+      setSelectedStartTimes(new Set());
+      setDialogOpen(false);
+      lastBookingClickRef.current = null;
+    }
+  }, [panelMode]);
 
   useEffect(() => {
     if (!schedule) return;
@@ -50,11 +73,11 @@ export function ScheduleCalendar() {
       setBlockedStarts(new Set());
       return;
     }
-    const blocked = schedule.slots
+    const blocked = visibleScheduleSlots
       .filter((s) => s.status === 'blocked')
       .map((s) => s.startTime);
     setBlockedStarts(new Set(blocked));
-  }, [schedule]);
+  }, [schedule, visibleScheduleSlots]);
 
   const saveSchedule = useMutation({
     mutationFn: (payload: { allDay: boolean; blockedStarts: string[] }) =>
@@ -116,9 +139,49 @@ export function ScheduleCalendar() {
     past: 'bg-transparent border-transparent text-text-muted/30 cursor-not-allowed',
   };
 
+  const handleSelectBookingSlot = (startTime: string, shiftKey: boolean) => {
+    if (!schedule) return;
+
+    if (shiftKey && lastBookingClickRef.current) {
+      const allTimes = visibleScheduleSlots.map((s) => s.startTime);
+      const fromIndex = allTimes.indexOf(lastBookingClickRef.current);
+      const toIndex = allTimes.indexOf(startTime);
+      if (fromIndex >= 0 && toIndex >= 0) {
+        const [start, end] = fromIndex < toIndex ? [fromIndex, toIndex] : [toIndex, fromIndex];
+        const rangeTimes = visibleScheduleSlots
+          .slice(start, end + 1)
+          .filter((s) => s.status === 'available')
+          .map((s) => s.startTime);
+        setSelectedStartTimes((prev) => {
+          const next = new Set(prev);
+          const removeRange = next.has(startTime);
+          for (const time of rangeTimes) {
+            if (removeRange) next.delete(time);
+            else next.add(time);
+          }
+          return next;
+        });
+        lastBookingClickRef.current = startTime;
+        return;
+      }
+    }
+
+    lastBookingClickRef.current = startTime;
+    setSelectedStartTimes((prev) => {
+      const next = new Set(prev);
+      if (next.has(startTime)) next.delete(startTime);
+      else next.add(startTime);
+      return next;
+    });
+  };
+
+  const sortedSelectedTimes = [...selectedStartTimes].sort();
+  const slotInterval = schedule?.slotInterval ?? 30;
+  const selectedDurationLabel = formatDurationTr(selectedStartTimes.size * slotInterval);
+
   const handleToggleSlot = (startTime: string) => {
     if (!selectedDate || !schedule) return;
-    const slot = schedule.slots.find((s) => s.startTime === startTime);
+    const slot = visibleScheduleSlots.find((s) => s.startTime === startTime);
     if (!slot || slot.status === 'booked') return;
 
     const next = new Set(blockedStarts);
@@ -218,14 +281,71 @@ export function ScheduleCalendar() {
 
       {selectedDate ? (
         <div className={panelWrapperClass} style={panelHeightStyle}>
+          <div className="flex flex-wrap gap-2 mb-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPanelMode('block')}
+              className={cn(
+                'px-3 py-2 text-sm uppercase tracking-wider border rounded-sm transition-colors',
+                panelMode === 'block'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-text-muted hover:text-text',
+              )}
+            >
+              Saat Kapat / Aç
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelMode('book')}
+              className={cn(
+                'px-3 py-2 text-sm uppercase tracking-wider border rounded-sm transition-colors',
+                panelMode === 'book'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-text-muted hover:text-text',
+              )}
+            >
+              Randevu Yaz
+            </button>
+          </div>
           <DaySchedulePanel
             date={selectedDate}
             schedule={schedule}
             isLoading={scheduleLoading}
+            mode={panelMode}
             blockedStarts={blockedStarts}
+            selectedStartTimes={selectedStartTimes}
             onToggleSlot={handleToggleSlot}
+            onSelectBookingSlot={handleSelectBookingSlot}
             onToggleAllDay={handleToggleAllDay}
             isSaving={saveSchedule.isPending}
+          />
+          {panelMode === 'book' && selectedStartTimes.size > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setDialogOpen(true)}
+                className="flex-1 min-w-[140px] px-4 py-2.5 bg-accent/20 text-accent border border-accent/40 rounded-sm text-sm uppercase tracking-wider"
+              >
+                Randevu Oluştur · {selectedDurationLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStartTimes(new Set())}
+                className="px-4 py-2.5 border border-border rounded-sm text-sm uppercase tracking-wider text-text-muted hover:text-text"
+              >
+                Seçimi Temizle
+              </button>
+            </div>
+          )}
+          <CreateAppointmentDialog
+            open={dialogOpen}
+            date={selectedDate}
+            startTimes={sortedSelectedTimes}
+            onClose={() => setDialogOpen(false)}
+            onSuccess={() => {
+              setSelectedStartTimes(new Set());
+              setPanelMode('block');
+            }}
           />
         </div>
       ) : (

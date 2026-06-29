@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { AppointmentCard } from '@/components/appointments/AppointmentCard';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { SectionHeader } from '@/components/layout/SectionHeader';
 import { adminApi } from '@/lib/api';
 
 const today = format(new Date(), 'yyyy-MM-dd');
@@ -20,6 +22,14 @@ export function DashboardPage() {
     refetchInterval: 15000,
   });
 
+  const { data: debtors, isLoading: isLoadingDebt } = useQuery({
+    queryKey: ['customers', 'debt'],
+    queryFn: adminApi.getCustomersWithDebt,
+    refetchInterval: 30000,
+  });
+
+  const totalDebt = debtors?.reduce((sum, c) => sum + c.debtBalance, 0) ?? 0;
+
   const mutation = useMutation({
     mutationFn: ({ id, status, adminNote }: { id: string; status: string; adminNote?: string }) =>
       adminApi.updateAppointment(id, { status, adminNote }),
@@ -31,30 +41,66 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl sm:text-3xl uppercase">Panel</h1>
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <PageHeader title="Panel" />
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Bekleyen" value={stats?.pending ?? 0} accent />
         <StatCard label="Bugün" value={stats?.todayCount ?? 0} />
         <StatCard label="Toplam" value={stats?.total ?? 0} />
       </div>
 
-      <h2 className="font-display text-xl uppercase mt-10 mb-4">Bugünkü Randevularınız</h2>
+      <section className="mt-10">
+        <SectionHeader title="Bugünkü Randevularınız" />
 
-      {isLoading && <p className="text-text-muted">Yükleniyor...</p>}
+        {isLoading && <p className="text-text-muted">Yükleniyor...</p>}
 
-      {!isLoading && !todayAppointments?.length && (
-        <p className="text-text-muted">Bugün için randevu yok.</p>
-      )}
+        {!isLoading && !todayAppointments?.length && (
+          <p className="text-text-muted">Bugün için randevu yok.</p>
+        )}
 
-      <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4">
-        {todayAppointments?.map((a) => (
-          <AppointmentCard
-            key={a.id}
-            appointment={a}
-            onUpdate={(status, adminNote) => mutation.mutate({ id: a.id, status, adminNote })}
-          />
-        ))}
-      </div>
+        <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4">
+          {todayAppointments?.map((a) => (
+            <AppointmentCard
+              key={a.id}
+              appointment={a}
+              onUpdate={(status, adminNote) => mutation.mutate({ id: a.id, status, adminNote })}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <SectionHeader
+          title="Alınacak"
+          description={
+            totalDebt > 0
+              ? `Toplam ${totalDebt} ₺ tahsil edilecek borç var.`
+              : 'Şu an kayıtlı borç bulunmuyor.'
+          }
+        />
+
+        {isLoadingDebt && <p className="text-text-muted">Yükleniyor...</p>}
+
+        {!isLoadingDebt && debtors && debtors.length > 0 && (
+          <div className="grid gap-2 sm:gap-3">
+            {debtors.map((customer) => (
+              <div
+                key={customer.id}
+                className="flex items-center justify-between gap-4 bg-surface border border-border rounded-sm px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-display uppercase truncate">
+                    {customer.firstName} {customer.lastName}
+                  </p>
+                  <p className="text-sm text-text-muted mt-0.5">{customer.phone}</p>
+                </div>
+                <p className="shrink-0 font-display text-lg text-warning tabular-nums">
+                  {customer.debtBalance} ₺
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -39,8 +39,10 @@ export function getDb(): Db {
 
 export const COLLECTIONS = {
   services: 'services',
+  serviceCombos: 'service_combos',
   appointments: 'appointments',
   availabilityRules: 'availability_rules',
   availabilityBlocks: 'availability_blocks',
   shopSettings: 'shop_settings',
+  serviceCategories: 'service_categories',
 } as const;

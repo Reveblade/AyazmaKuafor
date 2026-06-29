@@ -5,9 +5,13 @@ import { createAppointmentSchema } from '../schemas.js';
 import {
   computeEndTime,
   getAvailableSlots,
+  getDaySchedule,
   getMonthAvailabilitySummary,
+  roundDurationToSlots,
 } from '../services/availability.js';
-import type { Appointment, Service, AvailabilityRule, AvailabilityBlock } from '../types.js';
+import type { Appointment, Service, ServiceCategory, ServiceCombo, AvailabilityRule, AvailabilityBlock } from '../types.js';
+import { calculatePricing } from '../services/pricing.js';
+import { pricingQuoteSchema } from '../schemas.js';
 
 export const publicRoutes = new Hono();
 
@@ -21,6 +25,52 @@ publicRoutes.get('/services', async (c) => {
     .sort({ sortOrder: 1 })
     .toArray();
   return c.json(services.map(serializeService));
+});
+
+publicRoutes.get('/service-categories', async (c) => {
+  const db = getDb();
+  const categories = await db
+    .collection<ServiceCategory>(COLLECTIONS.serviceCategories)
+    .find({ active: true })
+    .sort({ sortOrder: 1 })
+    .toArray();
+  return c.json(categories.map(serializeCategory));
+});
+
+publicRoutes.get('/service-combos', async (c) => {
+  const db = getDb();
+  const combos = await db
+    .collection<ServiceCombo>(COLLECTIONS.serviceCombos)
+    .find({ active: true })
+    .sort({ sortOrder: 1 })
+    .toArray();
+  return c.json(combos.map(serializeCombo));
+});
+
+publicRoutes.post('/pricing/quote', async (c) => {
+  const body = await c.req.json();
+  const parsed = pricingQuoteSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const db = getDb();
+  const { serviceIds } = parsed.data;
+
+  const services = await db
+    .collection<Service>(COLLECTIONS.services)
+    .find({ _id: { $in: serviceIds.map((id) => new ObjectId(id)) }, active: true })
+    .toArray();
+
+  if (services.length !== serviceIds.length) {
+    return c.json({ error: 'Invalid service selection' }, 400);
+  }
+
+  const combos = await db
+    .collection<ServiceCombo>(COLLECTIONS.serviceCombos)
+    .find({ active: true })
+    .toArray();
+
+  const pricing = calculatePricing(services, combos);
+  return c.json(pricing);
 });
 
 publicRoutes.get('/shop-settings', async (c) => {
@@ -39,13 +89,14 @@ publicRoutes.get('/availability', async (c) => {
   const settings = await db.collection(COLLECTIONS.shopSettings).findOne({});
   const slotInterval = settings?.slotIntervalMinutes ?? 30;
 
-  let durationMinutes = 30;
+  let durationMinutes = slotInterval;
   if (serviceIds.length > 0) {
     const services = await db
       .collection<Service>(COLLECTIONS.services)
       .find({ _id: { $in: serviceIds.map((id) => new ObjectId(id)) } })
       .toArray();
-    durationMinutes = services.reduce((sum, s) => sum + s.durationMinutes, 0) || 30;
+    const rawDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
+    durationMinutes = roundDurationToSlots(rawDuration, slotInterval);
   }
 
   const [rules, blocks, appointments] = await Promise.all([
@@ -63,7 +114,16 @@ publicRoutes.get('/availability', async (c) => {
     appointments,
   );
 
-  return c.json({ date, durationMinutes, slots });
+  const schedule = getDaySchedule(
+    date,
+    slotInterval,
+    rules,
+    blocks,
+    appointments,
+    durationMinutes,
+  );
+
+  return c.json({ date, durationMinutes, slotInterval, slots, schedule });
 });
 
 publicRoutes.get('/availability/month', async (c) => {
@@ -77,13 +137,14 @@ publicRoutes.get('/availability/month', async (c) => {
   const settings = await db.collection(COLLECTIONS.shopSettings).findOne({});
   const slotInterval = settings?.slotIntervalMinutes ?? 30;
 
-  let defaultDuration = 30;
+  let defaultDuration = slotInterval;
   if (serviceIds.length > 0) {
     const services = await db
       .collection<Service>(COLLECTIONS.services)
       .find({ _id: { $in: serviceIds.map((id) => new ObjectId(id)) } })
       .toArray();
-    defaultDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0) || 30;
+    const rawDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
+    defaultDuration = roundDurationToSlots(rawDuration, slotInterval);
   }
 
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -155,12 +216,18 @@ publicRoutes.post('/appointments', async (c) => {
     return c.json({ error: 'Invalid service selection' }, 400);
   }
 
-  const durationMinutes = services.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const settings = await db.collection(COLLECTIONS.shopSettings).findOne({});
+  const slotInterval = settings?.slotIntervalMinutes ?? 30;
+  const rawDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const durationMinutes = roundDurationToSlots(rawDuration, slotInterval);
   const endTime = computeEndTime(startTime, durationMinutes);
   const finalSessionId = sessionId ?? crypto.randomUUID();
 
-  const settings = await db.collection(COLLECTIONS.shopSettings).findOne({});
-  const slotInterval = settings?.slotIntervalMinutes ?? 30;
+  const combos = await db
+    .collection<ServiceCombo>(COLLECTIONS.serviceCombos)
+    .find({ active: true })
+    .toArray();
+  const pricing = calculatePricing(services, combos);
 
   const [rules, blocks, appointments] = await Promise.all([
     db.collection<AvailabilityRule>(COLLECTIONS.availabilityRules).find({}).toArray(),
@@ -193,6 +260,10 @@ publicRoutes.post('/appointments', async (c) => {
     endTime,
     notes: rest.notes,
     status: 'pending',
+    subtotal: pricing.subtotal,
+    discountAmount: pricing.discountAmount,
+    totalPrice: pricing.total,
+    appliedComboIds: pricing.appliedCombos.map((combo) => new ObjectId(combo.id)),
     createdAt: now,
     updatedAt: now,
   };
@@ -209,15 +280,36 @@ publicRoutes.post('/appointments', async (c) => {
   }, 201);
 });
 
+function serializeCombo(combo: ServiceCombo) {
+  return {
+    id: String(combo._id),
+    name: combo.name,
+    serviceIds: combo.serviceIds.map(String),
+    discountAmount: combo.discountAmount,
+    active: combo.active,
+    sortOrder: combo.sortOrder,
+  };
+}
+
 function serializeService(service: Service) {
   return {
     id: String(service._id),
+    categoryId: service.categoryId ? String(service.categoryId) : null,
     name: service.name,
     description: service.description,
     price: service.price,
     durationMinutes: service.durationMinutes,
     active: service.active,
     sortOrder: service.sortOrder,
+  };
+}
+
+function serializeCategory(category: ServiceCategory) {
+  return {
+    id: String(category._id),
+    name: category.name,
+    sortOrder: category.sortOrder,
+    active: category.active,
   };
 }
 
@@ -235,9 +327,13 @@ function serializeAppointment(appointment: Appointment) {
     notes: appointment.notes,
     status: appointment.status,
     adminNote: appointment.adminNote,
+    subtotal: appointment.subtotal,
+    discountAmount: appointment.discountAmount,
+    totalPrice: appointment.totalPrice,
+    appliedComboIds: appointment.appliedComboIds?.map(String),
     createdAt: appointment.createdAt.toISOString(),
     updatedAt: appointment.updatedAt.toISOString(),
   };
 }
 
-export { serializeAppointment, serializeService };
+export { serializeAppointment, serializeService, serializeCategory, serializeCombo };

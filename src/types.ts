@@ -12,12 +12,29 @@ export interface LocalizedText {
   en: string;
 }
 
+export interface ServiceCategory {
+  _id?: ObjectId;
+  name: LocalizedText;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface Service {
   _id?: ObjectId;
+  categoryId?: ObjectId;
   name: LocalizedText;
   description: LocalizedText;
   price: number;
   durationMinutes: number;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface ServiceCombo {
+  _id?: ObjectId;
+  name: LocalizedText;
+  serviceIds: ObjectId[];
+  discountAmount: number;
   active: boolean;
   sortOrder: number;
 }
@@ -35,6 +52,10 @@ export interface Appointment {
   notes: string;
   status: AppointmentStatus;
   adminNote?: string;
+  subtotal?: number;
+  discountAmount?: number;
+  totalPrice?: number;
+  appliedComboIds?: ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,10 +86,20 @@ export interface ShopSettings {
   name: string;
   defaultLocale: 'tr' | 'en';
   slotIntervalMinutes: number;
+  adminPasswordHash?: string;
 }
 
 export interface TimeSlot {
   startTime: string;
   endTime: string;
   available: boolean;
+}
+
+export type ScheduleSlotStatus = 'available' | 'blocked' | 'booked';
+
+export interface ScheduleSlot {
+  startTime: string;
+  endTime: string;
+  status: ScheduleSlotStatus;
+  bookable: boolean;
 }

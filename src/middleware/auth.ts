@@ -4,7 +4,8 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { config } from '../config.js';
 
 const secret = new TextEncoder().encode(config.jwtSecret);
-const COOKIE_NAME = 'ayazma_admin_token';
+export const ADMIN_COOKIE_NAME = 'ayazma_admin_token';
+const COOKIE_NAME = ADMIN_COOKIE_NAME;
 
 export async function createAdminToken(): Promise<string> {
   return new SignJWT({ role: 'admin' })

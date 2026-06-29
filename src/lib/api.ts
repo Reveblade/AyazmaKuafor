@@ -81,6 +81,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  cancelAppointment: (id: string, sessionId: string) =>
+    request<import('@/types').Appointment>(`/appointments/${id}/cancel`, {
+      method: 'PATCH',
+      body: JSON.stringify({ sessionId }),
+    }),
 };
 
 export { API_URL };

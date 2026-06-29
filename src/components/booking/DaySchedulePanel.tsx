@@ -2,7 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { tr, enGB } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/cn';
-import { addMinutesToTime, slotOverlapsRange } from '@/lib/utils';
+import { slotOverlapsRange } from '@/lib/utils';
 import { getLocale } from '@/i18n';
 import type { DaySchedule, ScheduleSlot } from '@/types';
 
@@ -167,10 +167,10 @@ export function DaySchedulePanel({
               !!selectedTime &&
               !!bookingDurationMinutes &&
               slotOverlapsRange(slot.startTime, slot.endTime, selectedTime, bookingDurationMinutes);
-            const displayEndTime =
-              mode === 'customer' && slot.bookable && bookingDurationMinutes
-                ? addMinutesToTime(slot.startTime, bookingDurationMinutes)
-                : slot.endTime;
+            const slotCount =
+              bookingDurationMinutes && slotInterval && bookingDurationMinutes > slotInterval
+                ? bookingDurationMinutes / slotInterval
+                : 1;
             const { label, tone } = mode === 'customer'
               ? getCustomerStatusLabel(slot, isBlocked, t)
               : getAdminStatusLabel(slot, isBlocked, t);
@@ -201,10 +201,10 @@ export function DaySchedulePanel({
                 <span className={cn('font-mono tabular-nums shrink-0', isInSelection && 'text-accent')}>
                   {slot.startTime}
                   <span className="text-text-muted mx-1.5">–</span>
-                  {displayEndTime}
-                  {mode === 'customer' && slot.bookable && bookingDurationMinutes && slotInterval && bookingDurationMinutes > slotInterval && (
+                  {slot.endTime}
+                  {mode === 'customer' && isSelectionStart && slotCount > 1 && (
                     <span className="text-text-muted text-xs ml-2 normal-case font-sans">
-                      ({bookingDurationMinutes / slotInterval} {t('schedule.slots')})
+                      ({slotCount} {t('schedule.slots')})
                     </span>
                   )}
                 </span>

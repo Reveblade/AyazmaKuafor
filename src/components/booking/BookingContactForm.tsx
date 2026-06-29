@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Controller, type Control, type FieldErrors, type UseFormRegister } from 'react-hook-form';
+import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import { Input } from '@/components/ui/Input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { cn } from '@/lib/cn';
 import { formatPhoneFull, phoneDigitsFromStored } from '@/lib/phone';
+import { formatPersonName } from '@/lib/utils';
 import { getSavedContacts, removeSavedContact, type SavedContact } from '@/lib/session';
 
 export type ContactFormData = {
@@ -15,14 +16,12 @@ export type ContactFormData = {
 };
 
 interface BookingContactFormProps {
-  register: UseFormRegister<ContactFormData>;
   control: Control<ContactFormData>;
   errors: FieldErrors<ContactFormData>;
   onSelectContact: (contact: SavedContact | null) => void;
 }
 
 export function BookingContactForm({
-  register,
   control,
   errors,
   onSelectContact,
@@ -75,8 +74,8 @@ export function BookingContactForm({
                     : 'border-border bg-surface text-text-muted hover:border-accent/50',
                 )}
               >
-                <span className="font-medium truncate max-w-[120px]">
-                  {contact.firstName} {contact.lastName}
+                <span className="font-medium truncate max-w-[120px] uppercase">
+                  {formatPersonName(contact.firstName)} {formatPersonName(contact.lastName)}
                 </span>
                 <span className="text-xs text-text-muted truncate max-w-[100px]">
                   {formatPhoneFull(phoneDigitsFromStored(contact.phone))}
@@ -119,8 +118,32 @@ export function BookingContactForm({
         </div>
       )}
 
-      <Input label={t('booking.firstName')} {...register('firstName')} error={errors.firstName?.message} />
-      <Input label={t('booking.lastName')} {...register('lastName')} error={errors.lastName?.message} />
+      <Controller
+        name="firstName"
+        control={control}
+        render={({ field }) => (
+          <Input
+            label={t('booking.firstName')}
+            {...field}
+            className="uppercase"
+            onChange={(e) => field.onChange(formatPersonName(e.target.value))}
+            error={errors.firstName?.message}
+          />
+        )}
+      />
+      <Controller
+        name="lastName"
+        control={control}
+        render={({ field }) => (
+          <Input
+            label={t('booking.lastName')}
+            {...field}
+            className="uppercase"
+            onChange={(e) => field.onChange(formatPersonName(e.target.value))}
+            error={errors.lastName?.message}
+          />
+        )}
+      />
       <Controller
         name="phone"
         control={control}
@@ -136,10 +159,16 @@ export function BookingContactForm({
       />
       <div>
         <label className="text-sm text-text-muted uppercase tracking-wider">{t('booking.notes')}</label>
-        <textarea
-          {...register('notes')}
-          rows={3}
-          className="mt-1.5 w-full bg-surface border border-border rounded-sm px-4 py-2.5 text-text focus:outline-none focus:border-accent"
+        <Controller
+          name="notes"
+          control={control}
+          render={({ field }) => (
+            <textarea
+              {...field}
+              rows={3}
+              className="mt-1.5 w-full bg-surface border border-border rounded-sm px-4 py-2.5 text-text focus:outline-none focus:border-accent"
+            />
+          )}
         />
       </div>
     </div>

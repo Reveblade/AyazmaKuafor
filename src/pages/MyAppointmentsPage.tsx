@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Container, Section } from '@/components/ui/Section';
@@ -10,8 +10,32 @@ import { api } from '@/lib/api';
 import { getSessionId } from '@/lib/session';
 import { connectSocket } from '@/lib/socket';
 import { getLocale } from '@/i18n';
-import { formatDate, formatPrice, localized } from '@/lib/utils';
+import { formatDate, formatPrice, localized, PHONE, WHATSAPP_URL } from '@/lib/utils';
 import type { Appointment } from '@/types';
+
+const CANCELLABLE_STATUSES: Appointment['status'][] = ['pending', 'accepted'];
+
+function patchAppointmentCache(
+  queryClient: QueryClient,
+  sessionId: string,
+  updated: Appointment,
+) {
+  queryClient.setQueryData<Appointment[]>(['appointments', sessionId], (old) =>
+    old?.map((a) =>
+      a.id === updated.id ? { ...a, ...updated, services: updated.services ?? a.services } : a,
+    ),
+  );
+}
+
+function whatsappCancelUrl(appt: Appointment, locale: 'tr' | 'en') {
+  const dateStr = formatDate(appt.date, locale);
+  const services = appt.services?.map((s) => localized(s.name, locale)).join(', ') ?? '';
+  const message =
+    locale === 'tr'
+      ? `Merhaba, ${dateStr} ${appt.startTime} tarihli randevumu iptal etmek istiyorum.${services ? ` (${services})` : ''}`
+      : `Hello, I would like to cancel my appointment on ${dateStr} at ${appt.startTime}.${services ? ` (${services})` : ''}`;
+  return `${WHATSAPP_URL.split('?')[0]}?text=${encodeURIComponent(message)}`;
+}
 
 export function MyAppointmentsPage() {
   const { t } = useTranslation();
@@ -27,8 +51,8 @@ export function MyAppointmentsPage() {
 
   useEffect(() => {
     const socket = connectSocket(sessionId);
-    const handler = (_updated: Appointment) => {
-      queryClient.invalidateQueries({ queryKey: ['appointments', sessionId] });
+    const handler = (updated: Appointment) => {
+      patchAppointmentCache(queryClient, sessionId, updated);
     };
     socket.on('appointment:updated', handler);
     return () => { socket.off('appointment:updated', handler); };
@@ -83,6 +107,28 @@ export function MyAppointmentsPage() {
                   label={t(`appointments.status.${appt.status}`)}
                 />
               </div>
+
+              {CANCELLABLE_STATUSES.includes(appt.status) && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm text-text-muted">{t('appointments.cancelNotice')}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      href={`tel:${PHONE.replace(/\s/g, '')}`}
+                      className="inline-flex items-center justify-center font-display uppercase tracking-wider rounded-sm transition-colors px-3 py-1.5 text-sm bg-surface-elevated text-text border border-border hover:border-accent"
+                    >
+                      {t('appointments.cancelCall')}
+                    </a>
+                    <a
+                      href={whatsappCancelUrl(appt, locale)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center font-display uppercase tracking-wider rounded-sm transition-colors px-3 py-1.5 text-sm bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/40 hover:bg-[#25D366]/30"
+                    >
+                      {t('appointments.cancelWhatsApp')}
+                    </a>
+                  </div>
+                </div>
+              )}
             </Card>
           ))}
         </div>

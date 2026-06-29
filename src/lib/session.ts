@@ -1,3 +1,5 @@
+import { formatPersonName } from '@/lib/utils';
+
 const SESSION_KEY = 'ayazma_session';
 const CONTACTS_KEY = 'ayazma_contacts';
 const LEGACY_CONTACT_KEY = 'ayazma_contact';
@@ -59,8 +61,8 @@ export function saveContact(contact: Omit<SavedContact, 'id'> & { id?: string })
 
   const saved: SavedContact = {
     id: existing?.id ?? contact.id ?? crypto.randomUUID(),
-    firstName: contact.firstName,
-    lastName: contact.lastName,
+    firstName: formatPersonName(contact.firstName),
+    lastName: formatPersonName(contact.lastName),
     phone: contact.phone,
   };
 

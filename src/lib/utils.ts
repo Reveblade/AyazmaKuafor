@@ -4,6 +4,10 @@ export function localized(text: LocalizedText, locale: string): string {
   return locale === 'en' ? text.en : text.tr;
 }
 
+export function formatPersonName(value: string): string {
+  return value.toLocaleUpperCase('tr-TR');
+}
+
 export function formatPrice(price: number, locale: string): string {
   return new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'tr-TR', {
     style: 'currency',

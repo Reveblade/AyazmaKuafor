@@ -77,7 +77,10 @@
       "rejected": "Reddedildi",
       "cancelled": "İptal",
       "completed": "Tamamlandı"
-    }
+    },
+    "cancelNotice": "İptal için lütfen bizi arayarak veya WhatsApp üzerinden mesaj atarak bilgilendirin.",
+    "cancelCall": "Ara",
+    "cancelWhatsApp": "WhatsApp'tan Yaz"
   },
   "footer": {
     "rights": "Tüm hakları saklıdır."

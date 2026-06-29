@@ -77,7 +77,10 @@
       "rejected": "Rejected",
       "cancelled": "Cancelled",
       "completed": "Completed"
-    }
+    },
+    "cancelNotice": "To cancel, please notify us by phone or WhatsApp message.",
+    "cancelCall": "Call",
+    "cancelWhatsApp": "Message on WhatsApp"
   },
   "footer": {
     "rights": "All rights reserved."

@@ -20,6 +20,7 @@ import { formatPhoneFull, isValidTurkishMobile, parsePhoneDigits, phoneDigitsFro
 import { getSessionId, setSessionId, getSavedContacts, saveContact } from '@/lib/session';
 import { connectSocket } from '@/lib/socket';
 import { cn } from '@/lib/cn';
+import { formatPersonName } from '@/lib/utils';
 
 type FormData = {
   firstName: string;
@@ -36,8 +37,8 @@ export function BookingPage() {
   const schema = useMemo(
     () =>
       z.object({
-        firstName: z.string().min(2),
-        lastName: z.string().min(2),
+        firstName: z.string().min(2).transform(formatPersonName),
+        lastName: z.string().min(2).transform(formatPersonName),
         phone: z.string().superRefine((val, ctx) => {
           const digits = parsePhoneDigits(val);
           if (!isValidTurkishMobile(digits)) {
@@ -66,11 +67,11 @@ export function BookingPage() {
     currentMonth,
   );
 
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
+  const { handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      firstName: defaultContact?.firstName ?? '',
-      lastName: defaultContact?.lastName ?? '',
+      firstName: defaultContact ? formatPersonName(defaultContact.firstName) : '',
+      lastName: defaultContact ? formatPersonName(defaultContact.lastName) : '',
       phone: defaultContact?.phone ? formatPhoneFull(phoneDigitsFromStored(defaultContact.phone)) : '',
       notes: '',
     },
@@ -79,8 +80,8 @@ export function BookingPage() {
   const fillContact = (contact: { firstName: string; lastName: string; phone: string } | null) => {
     if (contact) {
       reset({
-        firstName: contact.firstName,
-        lastName: contact.lastName,
+        firstName: formatPersonName(contact.firstName),
+        lastName: formatPersonName(contact.lastName),
         phone: formatPhoneFull(phoneDigitsFromStored(contact.phone)),
         notes: '',
       });
@@ -177,7 +178,6 @@ export function BookingPage() {
             <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
                 <BookingContactForm
-                  register={register}
                   control={control}
                   errors={errors}
                   onSelectContact={fillContact}

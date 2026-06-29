@@ -22,6 +22,8 @@ export async function connectDb(): Promise<Db> {
   }
   db = client.db();
   await db.collection(COLLECTIONS.appointments).createIndex({ date: -1, startTime: -1, status: 1 });
+  await db.collection(COLLECTIONS.customers).createIndex({ phoneDigits: 1 }, { unique: true });
+  await db.collection(COLLECTIONS.customers).createIndex({ updatedAt: -1 });
   return db;
 }
 
@@ -46,4 +48,5 @@ export const COLLECTIONS = {
   availabilityBlocks: 'availability_blocks',
   shopSettings: 'shop_settings',
   serviceCategories: 'service_categories',
+  customers: 'customers',
 } as const;

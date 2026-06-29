@@ -11,6 +11,10 @@ export const createAppointmentSchema = z.object({
   notes: z.string().max(500).optional().default(''),
 });
 
+export const adminCreateAppointmentSchema = createAppointmentSchema.extend({
+  status: z.enum(['pending', 'accepted']).optional().default('accepted'),
+});
+
 export const adminAuthSchema = z.object({
   password: z.string().min(4).max(64),
 });
@@ -81,4 +85,15 @@ export const serviceComboSchema = z.object({
 
 export const pricingQuoteSchema = z.object({
   serviceIds: z.array(z.string()).min(1),
+});
+
+export const updateCustomerSchema = z.object({
+  firstName: z.string().min(2).max(50),
+  lastName: z.string().min(2).max(50),
+  phone: z.string().min(10).max(20),
+});
+
+export const addCustomerDebtSchema = z.object({
+  amount: z.number().positive().max(1_000_000),
+  note: z.string().max(300).optional().default(''),
 });

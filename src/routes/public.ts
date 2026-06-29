@@ -3,7 +3,6 @@ import { ObjectId } from 'mongodb';
 import { COLLECTIONS, getDb } from '../db.js';
 import { cancelAppointmentSchema, createAppointmentSchema } from '../schemas.js';
 import {
-  computeEndTime,
   getAvailableSlots,
   getDaySchedule,
   getMonthAvailabilitySummary,
@@ -11,6 +10,7 @@ import {
 } from '../services/availability.js';
 import type { Appointment, Service, ServiceCategory, ServiceCombo, AvailabilityRule, AvailabilityBlock } from '../types.js';
 import { calculatePricing } from '../services/pricing.js';
+import { createAppointmentRecord } from '../services/createAppointment.js';
 import { pricingQuoteSchema } from '../schemas.js';
 
 export const publicRoutes = new Hono();
@@ -207,77 +207,32 @@ publicRoutes.post('/appointments', async (c) => {
   const { serviceIds, date, startTime, sessionId, ...rest } = parsed.data;
   const db = getDb();
 
-  const services = await db
-    .collection<Service>(COLLECTIONS.services)
-    .find({ _id: { $in: serviceIds.map((id) => new ObjectId(id)) }, active: true })
-    .toArray();
+  try {
+    const created = await createAppointmentRecord(db, {
+      sessionId,
+      firstName: rest.firstName,
+      lastName: rest.lastName,
+      phone: rest.phone,
+      serviceIds,
+      date,
+      startTime,
+      notes: rest.notes,
+      status: 'pending',
+    });
 
-  if (services.length !== serviceIds.length) {
-    return c.json({ error: 'Invalid service selection' }, 400);
+    const { emitAppointmentCreated } = await import('../socket.js');
+    emitAppointmentCreated(created);
+
+    return c.json({
+      appointment: serializeAppointment(created),
+      sessionId: created.sessionId,
+    }, 201);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Request failed';
+    if (message === 'Invalid service selection') return c.json({ error: message }, 400);
+    if (message === 'Selected time slot is not available') return c.json({ error: message }, 409);
+    throw err;
   }
-
-  const settings = await db.collection(COLLECTIONS.shopSettings).findOne({});
-  const slotInterval = settings?.slotIntervalMinutes ?? 30;
-  const rawDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const durationMinutes = roundDurationToSlots(rawDuration, slotInterval);
-  const endTime = computeEndTime(startTime, durationMinutes);
-  const finalSessionId = sessionId ?? crypto.randomUUID();
-
-  const combos = await db
-    .collection<ServiceCombo>(COLLECTIONS.serviceCombos)
-    .find({ active: true })
-    .toArray();
-  const pricing = calculatePricing(services, combos);
-
-  const [rules, blocks, appointments] = await Promise.all([
-    db.collection<AvailabilityRule>(COLLECTIONS.availabilityRules).find({}).toArray(),
-    db.collection<AvailabilityBlock>(COLLECTIONS.availabilityBlocks).find({ date }).toArray(),
-    db.collection<Appointment>(COLLECTIONS.appointments).find({ date }).toArray(),
-  ]);
-
-  const slots = getAvailableSlots(
-    date,
-    durationMinutes,
-    slotInterval,
-    rules,
-    blocks,
-    appointments,
-  );
-  const slot = slots.find((s) => s.startTime === startTime);
-  if (!slot?.available) {
-    return c.json({ error: 'Selected time slot is not available' }, 409);
-  }
-
-  const now = new Date();
-  const appointment: Appointment = {
-    sessionId: finalSessionId,
-    firstName: rest.firstName,
-    lastName: rest.lastName,
-    phone: rest.phone,
-    serviceIds: serviceIds.map((id) => new ObjectId(id)),
-    date,
-    startTime,
-    endTime,
-    notes: rest.notes,
-    status: 'pending',
-    subtotal: pricing.subtotal,
-    discountAmount: pricing.discountAmount,
-    totalPrice: pricing.total,
-    appliedComboIds: pricing.appliedCombos.map((combo) => new ObjectId(combo.id)),
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const result = await db.collection<Appointment>(COLLECTIONS.appointments).insertOne(appointment);
-  const created = { ...appointment, _id: result.insertedId };
-
-  const { emitAppointmentCreated } = await import('../socket.js');
-  emitAppointmentCreated(created);
-
-  return c.json({
-    appointment: serializeAppointment(created),
-    sessionId: finalSessionId,
-  }, 201);
 });
 
 publicRoutes.patch('/appointments/:id/cancel', async (c) => {

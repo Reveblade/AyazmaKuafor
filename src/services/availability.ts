@@ -31,6 +31,28 @@ export function getDayOfWeek(dateStr: string): number {
   return new Date(y, m - 1, d).getDay();
 }
 
+function padTimePart(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+export function getLocalTodayAndTime() {
+  const now = new Date();
+  return {
+    today: `${now.getFullYear()}-${padTimePart(now.getMonth() + 1)}-${padTimePart(now.getDate())}`,
+    nowTime: `${padTimePart(now.getHours())}:${padTimePart(now.getMinutes())}`,
+  };
+}
+
+export function isSlotInPast(date: string, startTime: string): boolean {
+  const { today, nowTime } = getLocalTodayAndTime();
+  return date === today && startTime < nowTime;
+}
+
+export function filterPastSlotsForToday<T extends { startTime: string }>(date: string, slots: T[]): T[] {
+  if (date !== getLocalTodayAndTime().today) return slots;
+  return slots.filter((slot) => !isSlotInPast(date, slot.startTime));
+}
+
 export function computeEndTime(startTime: string, durationMinutes: number): string {
   return minutesToTime(timeToMinutes(startTime) + durationMinutes);
 }
@@ -92,7 +114,7 @@ export function getAvailableSlots(
     });
   }
 
-  return slots;
+  return filterPastSlotsForToday(date, slots);
 }
 
 export function getDaySchedule(
@@ -183,7 +205,7 @@ export function getDaySchedule(
     closeTime: rule.closeTime,
     closed: false,
     allDayBlocked: false,
-    slots,
+    slots: filterPastSlotsForToday(date, slots),
   };
 }
 

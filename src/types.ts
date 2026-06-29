@@ -39,6 +39,25 @@ export interface ServiceCombo {
   sortOrder: number;
 }
 
+export interface CustomerDebtEntry {
+  id: string;
+  amount: number;
+  note?: string;
+  createdAt: Date;
+}
+
+export interface Customer {
+  _id?: ObjectId;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  phoneDigits: string;
+  debtBalance?: number;
+  debtHistory?: CustomerDebtEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Appointment {
   _id?: ObjectId;
   sessionId: string;

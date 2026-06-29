@@ -10,6 +10,7 @@ import {
 } from '../middleware/auth.js';
 import {
   adminAuthSchema,
+  adminCreateAppointmentSchema,
   availabilityBlockSchema,
   availabilityRuleSchema,
   changePasswordSchema,
@@ -18,6 +19,8 @@ import {
   serviceComboSchema,
   updateAppointmentSchema,
   updateDayScheduleSchema,
+  updateCustomerSchema,
+  addCustomerDebtSchema,
 } from '../schemas.js';
 import { changeAdminPassword, verifyAdminPassword } from '../services/adminAuth.js';
 import {
@@ -31,6 +34,9 @@ import {
 import { serializeAppointment, serializeService, serializeCategory, serializeCombo } from './public.js';
 import type { Appointment, AvailabilityBlock, AvailabilityRule, Service, ServiceCategory, ServiceCombo } from '../types.js';
 import { getDaySchedule, mergeBlockedStarts } from '../services/availability.js';
+import { createAppointmentRecord } from '../services/createAppointment.js';
+import { normalizePhoneDigits, serializeCustomer, serializeCustomerDetail, upsertCustomer, buildAppointmentPhoneQuery } from '../services/customers.js';
+import type { Customer } from '../types.js';
 
 export const adminRoutes = new Hono();
 
@@ -170,6 +176,213 @@ adminRoutes.patch('/appointments/:id', adminAuthMiddleware, async (c) => {
   emitAppointmentUpdated(result);
 
   return c.json(serializeAppointment(result));
+});
+
+adminRoutes.post('/appointments', adminAuthMiddleware, async (c) => {
+  const body = await c.req.json();
+  const parsed = adminCreateAppointmentSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const { serviceIds, date, startTime, status, ...rest } = parsed.data;
+  const db = getDb();
+
+  try {
+    await upsertCustomer(db, {
+      firstName: rest.firstName,
+      lastName: rest.lastName,
+      phone: rest.phone,
+    });
+
+    const created = await createAppointmentRecord(db, {
+      firstName: rest.firstName,
+      lastName: rest.lastName,
+      phone: rest.phone,
+      serviceIds,
+      date,
+      startTime,
+      notes: rest.notes,
+      status,
+    });
+
+    const { emitAppointmentCreated, emitScheduleUpdated } = await import('../socket.js');
+    emitAppointmentCreated(created);
+    emitScheduleUpdated(date);
+
+    const [serialized] = await serializeAppointmentsWithServices([created]);
+    return c.json(serialized, 201);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Request failed';
+    if (message === 'Invalid service selection') return c.json({ error: message }, 400);
+    if (message === 'Selected time slot is not available') return c.json({ error: message }, 409);
+    throw err;
+  }
+});
+
+adminRoutes.get('/customers', adminAuthMiddleware, async (c) => {
+  const search = c.req.query('search')?.trim();
+  const hasDebt = c.req.query('hasDebt') === 'true';
+  const pageRaw = c.req.query('page');
+  const limitRaw = c.req.query('limit');
+  const db = getDb();
+
+  let filter: Record<string, unknown> = {};
+  if (hasDebt) {
+    filter.debtBalance = { $gt: 0 };
+  }
+  if (search) {
+    const digits = normalizePhoneDigits(search);
+    const conditions: Record<string, unknown>[] = [
+      { firstName: { $regex: search, $options: 'i' } },
+      { lastName: { $regex: search, $options: 'i' } },
+    ];
+    if (digits.length >= 3) {
+      conditions.push({ phoneDigits: { $regex: digits } });
+    }
+    filter = hasDebt ? { $and: [filter, { $or: conditions }] } : { $or: conditions };
+  }
+
+  const isPaginated = !hasDebt && (pageRaw != null || limitRaw != null);
+  const page = Math.max(1, Number.parseInt(pageRaw ?? '1', 10) || 1);
+  const limit = isPaginated
+    ? Math.min(50, Math.max(1, Number.parseInt(limitRaw ?? '20', 10) || 20))
+    : 10;
+  const skip = isPaginated ? (page - 1) * limit : 0;
+
+  const collection = db.collection<Customer>(COLLECTIONS.customers);
+
+  if (isPaginated) {
+    const [customers, total] = await Promise.all([
+      collection.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit).toArray(),
+      collection.countDocuments(filter),
+    ]);
+    return c.json({
+      items: customers.map(serializeCustomer),
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  }
+
+  const sort = hasDebt ? { debtBalance: -1 as const, updatedAt: -1 as const } : { updatedAt: -1 as const };
+  const customers = await collection.find(filter).sort(sort).limit(hasDebt ? 100 : limit).toArray();
+  return c.json(customers.map(serializeCustomer));
+});
+
+adminRoutes.get('/customers/:id', adminAuthMiddleware, async (c) => {
+  const id = c.req.param('id');
+  if (!id || !ObjectId.isValid(id)) return c.json({ error: 'Invalid id' }, 400);
+
+  const db = getDb();
+  const customer = await db.collection<Customer>(COLLECTIONS.customers).findOne({ _id: new ObjectId(id) });
+  if (!customer) return c.json({ error: 'Not found' }, 404);
+
+  const appointments = await db
+    .collection<Appointment>(COLLECTIONS.appointments)
+    .find(buildAppointmentPhoneQuery(customer.phoneDigits))
+    .sort({ date: -1, startTime: -1 })
+    .toArray();
+
+  const serializedAppointments = await serializeAppointmentsWithServices(appointments);
+
+  return c.json({
+    ...serializeCustomerDetail(customer),
+    appointments: serializedAppointments,
+  });
+});
+
+adminRoutes.post('/customers/:id/debt', adminAuthMiddleware, async (c) => {
+  const id = c.req.param('id');
+  if (!id || !ObjectId.isValid(id)) return c.json({ error: 'Invalid id' }, 400);
+
+  const body = await c.req.json();
+  const parsed = addCustomerDebtSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const db = getDb();
+  const now = new Date();
+  const entry = {
+    id: crypto.randomUUID(),
+    amount: parsed.data.amount,
+    note: parsed.data.note || undefined,
+    createdAt: now,
+  };
+
+  const result = await db.collection<Customer>(COLLECTIONS.customers).findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    {
+      $inc: { debtBalance: parsed.data.amount },
+      $push: { debtHistory: entry },
+      $set: { updatedAt: now },
+    },
+    { returnDocument: 'after' },
+  );
+
+  if (!result) return c.json({ error: 'Not found' }, 404);
+
+  return c.json(serializeCustomerDetail(result), 201);
+});
+
+adminRoutes.patch('/customers/:id', adminAuthMiddleware, async (c) => {
+  const id = c.req.param('id');
+  if (!id || !ObjectId.isValid(id)) return c.json({ error: 'Invalid id' }, 400);
+
+  const body = await c.req.json();
+  const parsed = updateCustomerSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const db = getDb();
+  const existing = await db.collection<Customer>(COLLECTIONS.customers).findOne({ _id: new ObjectId(id) });
+  if (!existing) return c.json({ error: 'Not found' }, 404);
+
+  const phoneDigits = normalizePhoneDigits(parsed.data.phone);
+  const duplicate = await db.collection<Customer>(COLLECTIONS.customers).findOne({
+    phoneDigits,
+    _id: { $ne: new ObjectId(id) },
+  });
+  if (duplicate) return c.json({ error: 'Bu telefon numarası başka bir müşteriye kayıtlı' }, 409);
+
+  const now = new Date();
+  const result = await db.collection<Customer>(COLLECTIONS.customers).findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    {
+      $set: {
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        phone: parsed.data.phone,
+        phoneDigits,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: 'after' },
+  );
+
+  if (!result) return c.json({ error: 'Not found' }, 404);
+
+  await db.collection<Appointment>(COLLECTIONS.appointments).updateMany(
+    buildAppointmentPhoneQuery(existing.phoneDigits),
+    {
+      $set: {
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        phone: parsed.data.phone,
+        updatedAt: now,
+      },
+    },
+  );
+
+  return c.json(serializeCustomer(result));
+});
+
+adminRoutes.delete('/customers/:id', adminAuthMiddleware, async (c) => {
+  const id = c.req.param('id');
+  if (!id || !ObjectId.isValid(id)) return c.json({ error: 'Invalid id' }, 400);
+
+  const db = getDb();
+  const result = await db.collection(COLLECTIONS.customers).deleteOne({ _id: new ObjectId(id) });
+  if (result.deletedCount === 0) return c.json({ error: 'Not found' }, 404);
+
+  return c.json({ ok: true });
 });
 
 adminRoutes.get('/services', adminAuthMiddleware, async (c) => {

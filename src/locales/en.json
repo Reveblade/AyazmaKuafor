@@ -1,0 +1,85 @@
+{
+  "nav": {
+    "home": "Home",
+    "services": "Services",
+    "gallery": "Gallery",
+    "contact": "Contact",
+    "booking": "Book",
+    "myAppointments": "My Appointments"
+  },
+  "hero": {
+    "title": "Ayazma Hair Styling",
+    "subtitle": "Craft and style in modern men's grooming. Professional barber experience in Izmir Karabaglar.",
+    "ctaBook": "Book Now",
+    "ctaServices": "View Services"
+  },
+  "services": {
+    "title": "Services & Prices",
+    "subtitle": "Every service delivered with precision and care.",
+    "duration": "{{minutes}} min",
+    "from": "from"
+  },
+  "gallery": {
+    "title": "Our Work",
+    "subtitle": "Selected works from our recent sessions."
+  },
+  "contact": {
+    "title": "Contact",
+    "subtitle": "Visit us or call us directly.",
+    "address": "Address",
+    "phone": "Phone",
+    "owner": "Owner",
+    "hours": "Working Hours",
+    "hoursValue": "Tuesday – Saturday: 09:00 – 19:00",
+    "closed": "Closed on Sunday & Monday"
+  },
+  "booking": {
+    "title": "Book Appointment",
+    "subtitle": "Choose your service and pick an available time.",
+    "step1": "Select Services",
+    "step2": "Date & Time",
+    "step3": "Your Details",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "phone": "Phone",
+    "notes": "Notes (optional)",
+    "submit": "Submit Request",
+    "success": "Your request has been received! We will call you to confirm.",
+    "noSlots": "No available slots on this date.",
+    "selectService": "Select at least one service.",
+    "selectDate": "Select a date.",
+    "selectTime": "Select a time.",
+    "closedDay": "Closed",
+    "fullDay": "Full",
+    "availableDay": "Available"
+  },
+  "appointments": {
+    "title": "My Appointments",
+    "subtitle": "Track your appointment status here.",
+    "empty": "You have no appointments yet.",
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "completed": "Completed"
+    }
+  },
+  "footer": {
+    "rights": "All rights reserved."
+  },
+  "floating": {
+    "book": "Book",
+    "whatsapp": "WhatsApp"
+  },
+  "home": {
+    "featured": "Featured Services",
+    "locationTitle": "Location",
+    "locationText": "Easy to reach in Karabaglar, Izmir."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong.",
+    "retry": "Retry"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "nav": {
+    "home": "Ana Sayfa",
+    "services": "Hizmetler",
+    "gallery": "Galeri",
+    "contact": "İletişim",
+    "booking": "Randevu",
+    "myAppointments": "Randevularım"
+  },
+  "hero": {
+    "title": "Ayazma Hair Styling",
+    "subtitle": "Modern erkek bakımında ustalık ve stil. İzmir Karabağlar'da profesyonel kuaför deneyimi.",
+    "ctaBook": "Randevu Al",
+    "ctaServices": "Hizmetleri Gör"
+  },
+  "services": {
+    "title": "Hizmetler & Fiyatlar",
+    "subtitle": "Her hizmet titizlikle ve özenle uygulanır.",
+    "duration": "{{minutes}} dk",
+    "from": "itibaren"
+  },
+  "gallery": {
+    "title": "Çalışmalarımız",
+    "subtitle": "Son işlerimizden seçmeler."
+  },
+  "contact": {
+    "title": "İletişim",
+    "subtitle": "Bizi ziyaret edin veya hemen arayın.",
+    "address": "Adres",
+    "phone": "Telefon",
+    "owner": "İşletme Sahibi",
+    "hours": "Çalışma Saatleri",
+    "hoursValue": "Salı – Cumartesi: 09:00 – 19:00",
+    "closed": "Pazar & Pazartesi kapalı"
+  },
+  "booking": {
+    "title": "Randevu Al",
+    "subtitle": "Hizmetinizi seçin, uygun tarihi belirleyin.",
+    "step1": "Hizmet Seçimi",
+    "step2": "Tarih & Saat",
+    "step3": "Bilgileriniz",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "phone": "Telefon",
+    "notes": "Notlar (isteğe bağlı)",
+    "submit": "Randevu Talebi Gönder",
+    "success": "Randevu talebiniz alındı! Onay için sizi arayacağız.",
+    "noSlots": "Bu tarihte uygun saat yok.",
+    "selectService": "En az bir hizmet seçin.",
+    "selectDate": "Tarih seçin.",
+    "selectTime": "Saat seçin.",
+    "closedDay": "Kapalı",
+    "fullDay": "Dolu",
+    "availableDay": "Müsait"
+  },
+  "appointments": {
+    "title": "Randevularım",
+    "subtitle": "Randevu durumlarınızı buradan takip edebilirsiniz.",
+    "empty": "Henüz randevunuz yok.",
+    "status": {
+      "pending": "Beklemede",
+      "accepted": "Onaylandı",
+      "rejected": "Reddedildi",
+      "cancelled": "İptal",
+      "completed": "Tamamlandı"
+    }
+  },
+  "footer": {
+    "rights": "Tüm hakları saklıdır."
+  },
+  "floating": {
+    "book": "Randevu Al",
+    "whatsapp": "WhatsApp"
+  },
+  "home": {
+    "featured": "Öne Çıkan Hizmetler",
+    "locationTitle": "Konum",
+    "locationText": "Karabağlar, İzmir'de kolay ulaşım."
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu.",
+    "retry": "Tekrar Dene"
+  }
+}

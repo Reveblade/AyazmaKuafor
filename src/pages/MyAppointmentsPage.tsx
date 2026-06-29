@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { getSessionId } from '@/lib/session';
 import { connectSocket } from '@/lib/socket';
 import { getLocale } from '@/i18n';
-import { formatDate, localized } from '@/lib/utils';
+import { formatDate, formatPrice, localized } from '@/lib/utils';
 import type { Appointment } from '@/types';
 
 export function MyAppointmentsPage() {
@@ -62,6 +62,18 @@ export function MyAppointmentsPage() {
                   <p className="text-text-muted text-sm mt-1">
                     {appt.services?.map((s) => localized(s.name, locale)).join(', ')}
                   </p>
+                  {appt.totalPrice != null && (
+                    <p className="text-sm mt-2">
+                      {appt.discountAmount ? (
+                        <>
+                          <span className="text-text-muted line-through mr-2">{formatPrice(appt.subtotal ?? 0, locale)}</span>
+                          <span className="font-display">{formatPrice(appt.totalPrice, locale)}</span>
+                        </>
+                      ) : (
+                        <span className="font-display">{formatPrice(appt.totalPrice, locale)}</span>
+                      )}
+                    </p>
+                  )}
                   {appt.adminNote && (
                     <p className="text-sm text-text-muted mt-2 italic">{appt.adminNote}</p>
                   )}

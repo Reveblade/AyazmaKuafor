@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { api } from '@/lib/api';
 import { getLocale } from '@/i18n';
-import { formatPrice, localized, ADDRESS } from '@/lib/utils';
+import { formatPrice, localized } from '@/lib/utils';
 import { heroImage } from '@/data/images';
 
 export function HomePage() {
@@ -35,7 +35,7 @@ export function HomePage() {
           <div className="absolute inset-0 bg-bg/70" />
         </div>
         <Container className="relative z-10 py-24">
-          <p className="font-display text-accent uppercase tracking-[0.2em] text-sm mb-4">İzmir · Karabağlar</p>
+          <p className="font-display text-accent uppercase tracking-[0.2em] text-sm mb-4">{t('hero.tagline')}</p>
           <h1 className="font-display text-5xl md:text-7xl lg:text-8xl uppercase max-w-3xl">
             {t('hero.title')}
           </h1>
@@ -77,7 +77,7 @@ export function HomePage() {
           <div>
             <h2 className="font-display text-3xl uppercase">{t('home.locationTitle')}</h2>
             <p className="mt-4 text-text-muted">{t('home.locationText')}</p>
-            <p className="mt-4 text-text">{ADDRESS}</p>
+            <p className="mt-4 text-text">{t('contact.addressValue')}</p>
             <Link to="/iletisim" className="inline-block mt-6">
               <Button variant="secondary">{t('nav.contact')}</Button>
             </Link>

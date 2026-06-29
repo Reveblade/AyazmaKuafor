@@ -5,6 +5,10 @@ import en from '../locales/en.json';
 
 const savedLocale = localStorage.getItem('ayazma_locale') ?? 'tr';
 
+function syncDocumentLang(locale: string) {
+  document.documentElement.lang = locale === 'en' ? 'en' : 'tr';
+}
+
 i18n.use(initReactI18next).init({
   resources: {
     tr: { translation: tr },
@@ -14,6 +18,9 @@ i18n.use(initReactI18next).init({
   fallbackLng: 'tr',
   interpolation: { escapeValue: false },
 });
+
+syncDocumentLang(savedLocale);
+i18n.on('languageChanged', syncDocumentLang);
 
 export default i18n;
 

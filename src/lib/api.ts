@@ -41,13 +41,19 @@ async function request<T>(
 
 export const api = {
   getServices: () => request<import('@/types').Service[]>('/services'),
+  getServiceCategories: () => request<import('@/types').ServiceCategory[]>('/service-categories'),
+  getServiceCombos: () => request<import('@/types').ServiceCombo[]>('/service-combos'),
   getShopSettings: () => request<import('@/types').ShopSettings>('/shop-settings'),
   getAvailability: (date: string, serviceIds: string[]) => {
     const params = new URLSearchParams({ date });
     if (serviceIds.length) params.set('serviceIds', serviceIds.join(','));
-    return request<{ date: string; durationMinutes: number; slots: import('@/types').TimeSlot[] }>(
-      `/availability?${params}`,
-    );
+    return request<{
+      date: string;
+      durationMinutes: number;
+      slotInterval: number;
+      slots: import('@/types').TimeSlot[];
+      schedule: import('@/types').DaySchedule;
+    }>(`/availability?${params}`);
   },
   getMonthAvailability: (year: number, month: number, serviceIds: string[]) => {
     const params = new URLSearchParams({

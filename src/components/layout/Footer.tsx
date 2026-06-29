@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Container } from '@/components/ui/Section';
-import { ADDRESS, OWNER, PHONE, SHOP_NAME, WHATSAPP_URL } from '@/lib/utils';
+import { OWNER, PHONE, SHOP_NAME, WHATSAPP_URL } from '@/lib/utils';
 
 export function Footer() {
   const { t } = useTranslation();
@@ -16,7 +16,7 @@ export function Footer() {
         </div>
         <div>
           <h4 className="font-display text-sm uppercase tracking-wider mb-3">{t('contact.address')}</h4>
-          <p className="text-text-muted text-sm leading-relaxed">{ADDRESS}</p>
+          <p className="text-text-muted text-sm leading-relaxed">{t('contact.addressValue')}</p>
           <a href={`tel:${PHONE.replace(/\s/g, '')}`} className="block mt-3 text-accent hover:text-accent-hover text-sm">
             {PHONE}
           </a>

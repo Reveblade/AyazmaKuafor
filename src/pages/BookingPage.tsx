@@ -1,68 +1,99 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { startOfMonth } from 'date-fns';
 import { Container, Section } from '@/components/ui/Section';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { AvailabilityCalendar } from '@/components/booking/AvailabilityCalendar';
+import { BookingContactForm } from '@/components/booking/BookingContactForm';
+import { ServiceCategoryPicker } from '@/components/booking/ServiceCategoryPicker';
+import { BookingPriceSummary } from '@/components/booking/BookingPriceSummary';
+import { BookingCalendar } from '@/components/booking/BookingCalendar';
+import { DaySchedulePanel } from '@/components/booking/DaySchedulePanel';
+import { useBookingAvailability } from '@/components/booking/useBookingAvailability';
 import { api } from '@/lib/api';
-import { getSessionId, setSessionId, getContactCache, setContactCache } from '@/lib/session';
+import { formatPhoneFull, isValidTurkishMobile, parsePhoneDigits, phoneDigitsFromStored } from '@/lib/phone';
+import { getSessionId, setSessionId, getSavedContacts, saveContact } from '@/lib/session';
 import { connectSocket } from '@/lib/socket';
-import { getLocale } from '@/i18n';
-import { formatPrice, localized } from '@/lib/utils';
 import { cn } from '@/lib/cn';
 
-const schema = z.object({
-  firstName: z.string().min(2),
-  lastName: z.string().min(2),
-  phone: z.string().min(10),
-  notes: z.string().max(500).optional(),
-});
-
-type FormData = z.infer<typeof schema>;
+type FormData = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  notes?: string;
+};
 
 export function BookingPage() {
   const { t } = useTranslation();
-  const locale = getLocale();
   const queryClient = useQueryClient();
-  const cached = getContactCache();
+  const defaultContact = getSavedContacts()[0];
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        firstName: z.string().min(2),
+        lastName: z.string().min(2),
+        phone: z.string().superRefine((val, ctx) => {
+          const digits = parsePhoneDigits(val);
+          if (!isValidTurkishMobile(digits)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: digits.length > 0 && digits[0] !== '5'
+                ? t('booking.phoneMobileOnly')
+                : t('booking.phoneInvalid'),
+            });
+          }
+        }),
+        notes: z.string().max(500).optional(),
+      }),
+    [t],
+  );
 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [success, setSuccess] = useState(false);
 
-  const { data: services } = useQuery({
-    queryKey: ['services'],
-    queryFn: api.getServices,
-  });
+  const { monthData, schedule, scheduleLoading, bookingDurationMinutes, slotInterval, prefetchDay } = useBookingAvailability(
+    selectedDate,
+    selectedServices,
+    currentMonth,
+  );
 
-  const { data: availability } = useQuery({
-    queryKey: ['availability', selectedDate, selectedServices],
-    queryFn: () => api.getAvailability(selectedDate!, selectedServices),
-    enabled: !!selectedDate && selectedServices.length > 0,
-  });
-
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      firstName: cached?.firstName ?? '',
-      lastName: cached?.lastName ?? '',
-      phone: cached?.phone ?? '',
+      firstName: defaultContact?.firstName ?? '',
+      lastName: defaultContact?.lastName ?? '',
+      phone: defaultContact?.phone ? formatPhoneFull(phoneDigitsFromStored(defaultContact.phone)) : '',
       notes: '',
     },
   });
+
+  const fillContact = (contact: { firstName: string; lastName: string; phone: string } | null) => {
+    if (contact) {
+      reset({
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        phone: formatPhoneFull(phoneDigitsFromStored(contact.phone)),
+        notes: '',
+      });
+    } else {
+      reset({ firstName: '', lastName: '', phone: '', notes: '' });
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: api.createAppointment,
     onSuccess: (data) => {
       setSessionId(data.sessionId);
-      setContactCache({
+      saveContact({
         firstName: data.appointment.firstName,
         lastName: data.appointment.lastName,
         phone: data.appointment.phone,
@@ -95,8 +126,6 @@ export function BookingPage() {
     });
   };
 
-  const availableSlots = availability?.slots.filter((s) => s.available) ?? [];
-
   if (success) {
     return (
       <Section>
@@ -112,101 +141,98 @@ export function BookingPage() {
     );
   }
 
+  const showSchedule = selectedServices.length > 0;
+
   return (
-    <Section>
+    <Section className={showSchedule ? 'pb-36 lg:pb-0' : undefined}>
       <Container>
-        <h1 className="font-display text-4xl md:text-5xl uppercase">{t('booking.title')}</h1>
-        <p className="mt-4 text-text-muted">{t('booking.subtitle')}</p>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          <div>
+            <h1 className="font-display text-4xl md:text-5xl uppercase">{t('booking.title')}</h1>
+            <p className="mt-4 text-text-muted">{t('booking.subtitle')}</p>
+          </div>
+          <BookingPriceSummary selectedIds={selectedServices} className="hidden lg:block lg:w-72 shrink-0" />
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-12 grid gap-10 lg:grid-cols-2">
-          <div className="space-y-8">
-            <div>
-              <h2 className="font-display text-lg uppercase tracking-wider mb-4">{t('booking.step1')}</h2>
-              <div className="grid gap-3">
-                {services?.map((service) => (
-                  <button
-                    key={service.id}
-                    type="button"
-                    onClick={() => toggleService(service.id)}
-                    className={cn(
-                      'text-left p-4 border rounded-sm transition-colors',
-                      selectedServices.includes(service.id)
-                        ? 'border-accent bg-accent/10'
-                        : 'border-border bg-surface hover:border-accent/50',
-                    )}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="font-display uppercase">{localized(service.name, locale)}</span>
-                      <span>{formatPrice(service.price, locale)}</span>
-                    </div>
-                    <p className="text-sm text-text-muted mt-1">
-                      {service.durationMinutes} min
-                    </p>
-                  </button>
-                ))}
-              </div>
+        <BookingPriceSummary selectedIds={selectedServices} variant="floating" />
+
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="mt-12 grid gap-6 lg:grid-cols-2 lg:auto-rows-fr"
+        >
+          {/* Row 1: Hizmet seçimi */}
+          <div className="order-1 lg:order-none flex flex-col h-[520px] lg:h-[520px]">
+            <h2 className="font-display text-lg uppercase tracking-wider mb-4 shrink-0">{t('booking.step1')}</h2>
+            <div className="flex-1 min-h-0">
+              <ServiceCategoryPicker
+                selectedIds={selectedServices}
+                onToggle={toggleService}
+              />
             </div>
-
-            {selectedServices.length > 0 && (
-              <div>
-                <h2 className="font-display text-lg uppercase tracking-wider mb-4">{t('booking.step2')}</h2>
-                <AvailabilityCalendar
-                  selectedDate={selectedDate}
-                  onSelectDate={(d) => { setSelectedDate(d); setSelectedTime(null); }}
-                  serviceIds={selectedServices}
-                />
-
-                {selectedDate && (
-                  <div className="mt-4">
-                    {availableSlots.length === 0 ? (
-                      <p className="text-text-muted">{t('booking.noSlots')}</p>
-                    ) : (
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4">
-                        {availableSlots.map((slot) => (
-                          <button
-                            key={slot.startTime}
-                            type="button"
-                            onClick={() => setSelectedTime(slot.startTime)}
-                            className={cn(
-                              'py-2 text-sm border rounded-sm transition-colors',
-                              selectedTime === slot.startTime
-                                ? 'border-accent bg-accent/20 text-accent'
-                                : 'border-border hover:border-accent',
-                            )}
-                          >
-                            {slot.startTime}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          <div>
-            <h2 className="font-display text-lg uppercase tracking-wider mb-4">{t('booking.step3')}</h2>
-            <Card className="space-y-4">
-              <Input label={t('booking.firstName')} {...register('firstName')} error={errors.firstName?.message} />
-              <Input label={t('booking.lastName')} {...register('lastName')} error={errors.lastName?.message} />
-              <Input label={t('booking.phone')} type="tel" {...register('phone')} error={errors.phone?.message} />
-              <div>
-                <label className="text-sm text-text-muted uppercase tracking-wider">{t('booking.notes')}</label>
-                <textarea
-                  {...register('notes')}
-                  rows={3}
-                  className="mt-1.5 w-full bg-surface border border-border rounded-sm px-4 py-2.5 text-text focus:outline-none focus:border-accent"
+          {/* Bilgileriniz — mobil: hizmetten hemen sonra veya tarih/saatten sonra */}
+          <div className={cn('flex flex-col h-[520px]', showSchedule ? 'order-4 lg:order-none' : 'order-2 lg:order-none')}>
+            <h2 className="font-display text-lg uppercase tracking-wider mb-4 shrink-0">{t('booking.step3')}</h2>
+            <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+                <BookingContactForm
+                  register={register}
+                  control={control}
+                  errors={errors}
+                  onSelectContact={fillContact}
                 />
               </div>
               {mutation.isError && (
-                <p className="text-danger text-sm">{(mutation.error as Error).message}</p>
+                <p className="text-danger text-sm mt-4 shrink-0">{(mutation.error as Error).message}</p>
               )}
-              <Button type="submit" className="w-full" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full mt-4 shrink-0" disabled={mutation.isPending}>
                 {mutation.isPending ? t('common.loading') : t('booking.submit')}
               </Button>
             </Card>
           </div>
+
+          {/* Tarih — mobil: hizmet seçildikten sonra */}
+          {showSchedule && (
+            <div className="order-2 lg:order-none flex flex-col min-h-[360px]">
+              <h2 className="font-display text-lg uppercase tracking-wider mb-4">{t('booking.step2Date')}</h2>
+              <div className="flex-1">
+                <BookingCalendar
+                  currentMonth={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  selectedDate={selectedDate}
+                  onSelectDate={(d) => { setSelectedDate(d); setSelectedTime(null); }}
+                  monthSummary={monthData?.summary}
+                  onPrefetchDate={prefetchDay}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Saat — mobil: tarihten sonra */}
+          {showSchedule && (
+            <div className="order-3 lg:order-none flex flex-col min-h-[360px]">
+              <h2 className="font-display text-lg uppercase tracking-wider mb-4">{t('booking.step2Time')}</h2>
+              <div className="flex-1">
+                {selectedDate ? (
+                  <DaySchedulePanel
+                    mode="customer"
+                    date={selectedDate}
+                    schedule={schedule}
+                    isLoading={scheduleLoading}
+                    selectedTime={selectedTime}
+                    onSelectTime={setSelectedTime}
+                    bookingDurationMinutes={bookingDurationMinutes}
+                    slotInterval={slotInterval}
+                  />
+                ) : (
+                  <div className="border border-border rounded-sm p-4 bg-surface h-full min-h-[320px] flex items-center justify-center">
+                    <p className="text-text-muted text-sm">{t('schedule.selectDay')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </form>
       </Container>
     </Section>

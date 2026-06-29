@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Container, Section } from '@/components/ui/Section';
 import { Card } from '@/components/ui/Card';
-import { ADDRESS, OWNER, PHONE, WHATSAPP_URL } from '@/lib/utils';
+import { OWNER, PHONE, WHATSAPP_URL } from '@/lib/utils';
 
 export function ContactPage() {
   const { t } = useTranslation();
@@ -16,7 +16,7 @@ export function ContactPage() {
           <div className="grid gap-4">
             <Card>
               <h2 className="font-display text-sm uppercase tracking-wider text-accent">{t('contact.address')}</h2>
-              <p className="mt-2 text-text-muted">{ADDRESS}</p>
+              <p className="mt-2 text-text-muted">{t('contact.addressValue')}</p>
             </Card>
             <Card>
               <h2 className="font-display text-sm uppercase tracking-wider text-accent">{t('contact.phone')}</h2>

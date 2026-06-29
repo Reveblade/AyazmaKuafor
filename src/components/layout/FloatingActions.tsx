@@ -1,26 +1,30 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { WHATSAPP_URL } from '@/lib/utils';
 
 export function FloatingActions() {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const onBookingPage = pathname === '/randevu';
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pb-[env(safe-area-inset-bottom)]">
-      <Link
-        to="/randevu"
-        className="flex items-center gap-2 bg-accent text-bg font-display uppercase tracking-wider text-sm px-5 py-3 rounded-sm shadow-lg hover:bg-accent-hover transition-colors"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        {t('floating.book')}
-      </Link>
+    <div className="fixed bottom-6 right-6 z-50 flex flex-row items-center gap-3 pb-[env(safe-area-inset-bottom)]">
+      {!onBookingPage && (
+        <Link
+          to="/randevu"
+          className="flex items-center gap-2 bg-accent text-bg font-display uppercase tracking-wider text-sm px-5 py-3 rounded-sm shadow-lg hover:bg-accent-hover transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          {t('floating.book')}
+        </Link>
+      )}
       <a
         href={WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center w-12 h-12 bg-[#25D366] text-white rounded-sm shadow-lg hover:brightness-110 transition-all self-end"
+        className="flex items-center justify-center w-12 h-12 bg-[#25D366] text-white rounded-sm shadow-lg hover:brightness-110 transition-all shrink-0"
         aria-label={t('floating.whatsapp')}
       >
         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">

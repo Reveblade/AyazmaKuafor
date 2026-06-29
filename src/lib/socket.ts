@@ -8,6 +8,9 @@ export function getSocket(): Socket {
   if (!socket) {
     socket = io(API_URL, {
       autoConnect: false,
+      withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       auth: { sessionId: getSessionId() },
     });
   }
@@ -21,6 +24,11 @@ export function connectSocket(sessionId?: string) {
   return s;
 }
 
+export function connectBookingSocket() {
+  return connectSocket();
+}
+
 export function disconnectSocket() {
   socket?.disconnect();
 }
+

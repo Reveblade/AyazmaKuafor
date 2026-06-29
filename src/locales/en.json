@@ -8,6 +8,7 @@
     "myAppointments": "My Appointments"
   },
   "hero": {
+    "tagline": "Izmir · Karabaglar",
     "title": "Ayazma Hair Styling",
     "subtitle": "Craft and style in modern men's grooming. Professional barber experience in Izmir Karabaglar.",
     "ctaBook": "Book Now",
@@ -17,7 +18,9 @@
     "title": "Services & Prices",
     "subtitle": "Every service delivered with precision and care.",
     "duration": "{{minutes}} min",
-    "from": "from"
+    "from": "from",
+    "uncategorized": "Other",
+    "selected": "selected"
   },
   "gallery": {
     "title": "Our Work",
@@ -27,6 +30,7 @@
     "title": "Contact",
     "subtitle": "Visit us or call us directly.",
     "address": "Address",
+    "addressValue": "Gunaltay, 4765. Sk. 58/A, 35000 Karabaglar/Izmir",
     "phone": "Phone",
     "owner": "Owner",
     "hours": "Working Hours",
@@ -38,10 +42,14 @@
     "subtitle": "Choose your service and pick an available time.",
     "step1": "Select Services",
     "step2": "Date & Time",
+    "step2Date": "Date",
+    "step2Time": "Time",
     "step3": "Your Details",
     "firstName": "First Name",
     "lastName": "Last Name",
     "phone": "Phone",
+    "phoneMobileOnly": "Mobile numbers only. The number must start with 5.",
+    "phoneInvalid": "Enter a valid mobile number (10 digits).",
     "notes": "Notes (optional)",
     "submit": "Submit Request",
     "success": "Your request has been received! We will call you to confirm.",
@@ -49,9 +57,15 @@
     "selectService": "Select at least one service.",
     "selectDate": "Select a date.",
     "selectTime": "Select a time.",
+    "priceSummary": "Price Summary",
+    "subtotal": "Subtotal",
+    "total": "Total",
     "closedDay": "Closed",
     "fullDay": "Full",
-    "availableDay": "Available"
+    "availableDay": "Available",
+    "savedContacts": "Saved Contacts",
+    "newContact": "New Person",
+    "removeContact": "Remove contact"
   },
   "appointments": {
     "title": "My Appointments",
@@ -81,5 +95,24 @@
     "loading": "Loading...",
     "error": "Something went wrong.",
     "retry": "Retry"
+  },
+  "schedule": {
+    "selectDay": "Select a day on the calendar to view time slots.",
+    "closedDay": "This day is closed.",
+    "allDayBlocked": "The entire day is blocked for appointments.",
+    "noSlots": "No time slots for this day.",
+    "available": "Available",
+    "booked": "Booked",
+    "blocked": "Blocked",
+    "open": "Open",
+    "blockAllDay": "Block entire day",
+    "openAllDay": "Open entire day",
+    "statusAvailable": "Available",
+    "statusBlocked": "Closed",
+    "statusBooked": "Booked",
+    "statusYours": "Your Appointment",
+    "statusOpen": "Open",
+    "statusClosed": "Closed",
+    "slots": "slots"
   }
 }

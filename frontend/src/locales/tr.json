@@ -1,0 +1,124 @@
+{
+  "nav": {
+    "home": "Ana Sayfa",
+    "services": "Hizmetler",
+    "gallery": "Galeri",
+    "contact": "İletişim",
+    "booking": "Randevu",
+    "myAppointments": "Randevularım"
+  },
+  "hero": {
+    "tagline": "İzmir · Karabağlar",
+    "title": "Ayazma Hair Styling",
+    "subtitle": "Modern erkek bakımında ustalık ve stil. İzmir Karabağlar'da profesyonel kuaför deneyimi.",
+    "ctaBook": "Randevu Al",
+    "ctaServices": "Hizmetleri Gör"
+  },
+  "services": {
+    "title": "Hizmetler & Fiyatlar",
+    "subtitle": "Her hizmet titizlikle ve özenle uygulanır.",
+    "duration": "{{minutes}} dk",
+    "from": "itibaren",
+    "uncategorized": "Diğer",
+    "selected": "seçili"
+  },
+  "gallery": {
+    "title": "Çalışmalarımız",
+    "subtitle": "Son işlerimizden seçmeler."
+  },
+  "contact": {
+    "title": "İletişim",
+    "subtitle": "Bizi ziyaret edin veya hemen arayın.",
+    "address": "Adres",
+    "addressValue": "Günaltay, 4765. Sk. 58/A, 35000 Karabağlar/İzmir",
+    "phone": "Telefon",
+    "owner": "İşletme Sahibi",
+    "hours": "Çalışma Saatleri",
+    "hoursRange": "{{days}}: {{open}} – {{close}}",
+    "closedDays": "{{days}} kapalı",
+    "dayNames": ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"],
+    "hoursValue": "Salı – Cumartesi: 09:00 – 19:00",
+    "closed": "Pazar & Pazartesi kapalı"
+  },
+  "booking": {
+    "title": "Randevu Al",
+    "subtitle": "Hizmetinizi seçin, uygun tarihi belirleyin.",
+    "step1": "Hizmet Seçimi",
+    "step2": "Tarih & Saat",
+    "step2Date": "Tarih",
+    "step2Time": "Saat",
+    "step3": "Bilgileriniz",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "phone": "Telefon",
+    "phoneMobileOnly": "Sadece cep telefonu kabul edilir. Numara 5 ile başlamalıdır.",
+    "phoneInvalid": "Geçerli bir cep telefonu numarası girin (10 hane).",
+    "notes": "Notlar (isteğe bağlı)",
+    "submit": "Randevu Talebi Gönder",
+    "success": "Randevu talebiniz alındı! Onay için sizi arayacağız.",
+    "noSlots": "Bu tarihte uygun saat yok.",
+    "selectService": "En az bir hizmet seçin.",
+    "selectDate": "Tarih seçin.",
+    "selectTime": "Saat seçin.",
+    "priceSummary": "Fiyat Özeti",
+    "subtotal": "Ara Toplam",
+    "total": "Toplam",
+    "closedDay": "Kapalı",
+    "fullDay": "Dolu",
+    "availableDay": "Müsait",
+    "savedContacts": "Kayıtlı Kişiler",
+    "newContact": "Yeni Kişi",
+    "removeContact": "Kişiyi sil"
+  },
+  "appointments": {
+    "title": "Randevularım",
+    "subtitle": "Randevu durumlarınızı buradan takip edebilirsiniz.",
+    "empty": "Henüz randevunuz yok.",
+    "status": {
+      "pending": "Beklemede",
+      "accepted": "Onaylandı",
+      "rejected": "Reddedildi",
+      "cancelled": "İptal",
+      "completed": "Tamamlandı"
+    },
+    "cancelNotice": "İptal için lütfen bizi arayarak veya WhatsApp üzerinden mesaj atarak bilgilendirin.",
+    "cancelCall": "Ara",
+    "cancelWhatsApp": "WhatsApp'tan Yaz"
+  },
+  "footer": {
+    "rights": "Tüm hakları saklıdır."
+  },
+  "floating": {
+    "book": "Randevu Al",
+    "whatsapp": "WhatsApp"
+  },
+  "home": {
+    "featured": "Öne Çıkan Hizmetler",
+    "locationTitle": "Konum",
+    "locationText": "Karabağlar, İzmir'de kolay ulaşım."
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu.",
+    "retry": "Tekrar Dene"
+  },
+  "schedule": {
+    "selectDay": "Saatleri görmek için takvimden bir gün seçin.",
+    "closedDay": "Bu gün kapalı.",
+    "allDayBlocked": "Tüm gün randevuya kapalı.",
+    "noSlots": "Bu gün için saat bulunmuyor.",
+    "available": "Müsait",
+    "booked": "Dolu",
+    "blocked": "Kapalı",
+    "open": "Açık",
+    "blockAllDay": "Tüm günü kapat",
+    "openAllDay": "Tüm günü aç",
+    "statusAvailable": "Müsait",
+    "statusBlocked": "Kapalı",
+    "statusBooked": "Randevulu",
+    "statusYours": "Senin Randevun",
+    "statusOpen": "Açık",
+    "statusClosed": "Kapalı",
+    "slots": "slot"
+  }
+}

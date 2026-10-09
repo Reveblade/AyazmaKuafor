@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /hizmetler
+Allow: /galeri
+Allow: /iletisim
+Disallow: /randevu
+Disallow: /randevularim
+Disallow: /admin
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /

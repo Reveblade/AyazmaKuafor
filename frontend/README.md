@@ -1,0 +1,16 @@
+﻿# Ayazma Hair Styling Saloon — Customer Website
+
+Vite + React + TypeScript frontend.
+
+## Setup
+
+npm install
+cp .env.example .env
+npm run images
+npm run dev
+
+## Environment
+
+VITE_API_URL=http://localhost:8080
+
+See DESIGN.md for the design system.

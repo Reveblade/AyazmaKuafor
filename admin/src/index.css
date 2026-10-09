@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Oswald:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0f0f0f;
+  --color-surface: #1c1c1e;
+  --color-surface-elevated: #2a2a2c;
+  --color-text: #f5f3f0;
+  --color-text-muted: #9a9590;
+  --color-accent: #c4a77d;
+  --color-accent-hover: #d4bc94;
+  --color-border: #3a3a3c;
+  --color-success: #6b8f71;
+  --color-danger: #b85c5c;
+  --color-warning: #c9a227;
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --scrollbar-size: 2px;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    margin: 0;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+  }
+
+  html,
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-text-muted) 40%, transparent) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@keyframes appointment-highlight {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 0%, transparent);
+    border-color: var(--color-accent);
+  }
+  20% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 40%, transparent);
+    border-color: var(--color-accent);
+  }
+  80% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 40%, transparent);
+    border-color: var(--color-accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    border-color: var(--color-border);
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-display); }
+
+  .animate-appointment-highlight {
+    animation: appointment-highlight 2.5s ease-in-out;
+  }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
